@@ -124,6 +124,12 @@ python3 grade_plot.py grade_data.csv grade_plot.png green
 
 ---
 
+### Sample
+
+![Sample Result](example/sample.png)
+
+---
+
 ### 2️⃣ Streamlit Web App
 
 ```bash
