@@ -530,8 +530,9 @@ if uploaded_file is not None:
         
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")
-        st.markdown("Please ensure your file follows the template structure shown above.")
+        st.markdown("Ensure your file follows the template structure shown above.")
         st.markdown("Please check that you strictly follow the tool's specific template for each specific RoB. Also do make sure there are no AI generated invisible marks or spaces which may sometimes cause errors. Lastly, Always check the type of RoB selected for the specific RoB the user is uploading and expecting the results for.")
+        st.markdown("IMPORTANT: Say the Template suggests \"Very Low\" or \"Low Risk\" to be written for a domain, that's how it should be. \"Very low\" or \"Low risk\" or \"low risk\" will not be coloured by the tool and the tool will ignore this domain in the plot generated.")
     finally:
         # Clean up temporary files
         if tmp_file_path and os.path.exists(tmp_file_path):
