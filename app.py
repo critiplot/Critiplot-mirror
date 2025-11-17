@@ -21,9 +21,9 @@ from robis_plot import process_robis, professional_robis_plot, read_input_file a
 from jbi_case_report_plot import process_jbi_case_report, professional_jbi_plot, read_input_file as read_jbi_case_file
 from jbi_case_series_plot import process_jbi_case_series, professional_jbi_series_plot, read_input_file as read_jbi_series_file
 
-# page configuration
+# page config
 st.set_page_config(
-    page_title="Critiplot / Home",
+    page_title="Critiplot",
     layout="wide",
     page_icon="./assets/icon.png"  
 )
@@ -118,7 +118,7 @@ div[style*='position: absolute'] a.nav-link.active {{
 </style>
 """, unsafe_allow_html=True)
 
-# Background & logo
+# Background, logo
 def add_background_png(png_file):
     if os.path.exists(png_file):
         with open(png_file, "rb") as f:
@@ -534,14 +534,14 @@ if uploaded_file is not None:
         st.markdown("Please check that you strictly follow the tool's specific template for each specific RoB. Also do make sure there are no AI generated invisible marks or spaces which may sometimes cause errors. Lastly, Always check the type of RoB selected for the specific RoB the user is uploading and expecting the results for.")
         st.markdown("IMPORTANT: Say the Template suggests \"Very Low\" or \"Low Risk\" to be written for a domain, that's how it should be. \"Very low\" or \"Low risk\" or \"low risk\" will not be coloured by the tool and the tool will ignore this domain in the plot generated.")
     finally:
-        # Clean up temporary files
+       
         if tmp_file_path and os.path.exists(tmp_file_path):
             os.unlink(tmp_file_path)
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-        # Clear dataframe from memory
+       
         df = None
-        # Force garbage collection
+       
         import gc
         gc.collect()
 
@@ -657,7 +657,7 @@ document.getElementById("copy-btn").onclick = function() {{
 """
 components.html(copy_button_html, height=100)
 
-# Footer
+
 st.markdown("---")
 st.markdown("""
 <style>
