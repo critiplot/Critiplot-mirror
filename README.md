@@ -49,6 +49,13 @@ Streamlit User-Inferface
 ---
 
 
+## Data & Template
+
+* Please strictly follow the **Data & Template** _(available as .csv & excel format)_ as mentioned in the main Critiplot Web: [critiplot.vercel.app](https://critiplot.vercel.app)
+
+---
+
+
 ## 📥 Installation
 
 ```bash
