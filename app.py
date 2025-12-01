@@ -14,21 +14,18 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 import re
 
-
 from nos_plot import process_detailed_nos, professional_plot, read_input_file as read_nos_file
 from grade_plot import process_grade, grade_plot, read_input_file as read_grade_file
 from robis_plot import process_robis, professional_robis_plot, read_input_file as read_robis_file
 from jbi_case_report_plot import process_jbi_case_report, professional_jbi_plot, read_input_file as read_jbi_case_file
 from jbi_case_series_plot import process_jbi_case_series, professional_jbi_series_plot, read_input_file as read_jbi_series_file
 
-# page config
 st.set_page_config(
     page_title="Critiplot",
     layout="wide",
     page_icon="./assets/icon.png"  
 )
 
-# Hide Streamlit UI elements
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -38,7 +35,6 @@ hide_streamlit_style = """
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
 
 st.markdown("""
 <style>
@@ -84,7 +80,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Navigation
 active_page = st.session_state.get("active_page", "Home")
 
 st.markdown(f"""
@@ -118,7 +113,6 @@ div[style*='position: absolute'] a.nav-link.active {{
 </style>
 """, unsafe_allow_html=True)
 
-# Background, logo
 def add_background_png(png_file):
     if os.path.exists(png_file):
         with open(png_file, "rb") as f:
@@ -146,7 +140,6 @@ def display_logo_png_top_touch(png_file, height=180):
 
 add_background_png("./assets/background.png")
 
-# Content wrapper
 st.markdown('<div class="top-padding-container">', unsafe_allow_html=True)
 display_logo_png_top_touch("./assets/logo.png", height=180)
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
@@ -155,16 +148,16 @@ st.markdown('<p class="centered-subtitle">A Critical Appraisal Plot Visualiser f
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div class="lowered-section">', unsafe_allow_html=True)
 
-# Tool selection
+# Tool selection moved here
 tool = st.selectbox(
     "Select Assessment Tool",
     ["NOS (Newcastle-Ottawa Scale)", "GRADE", "ROBIS", "JBI Case Report", "JBI Case Series"],
-    key="tool_select"
+    key="tool"
 )
 
-# Quick Start / Data Instructions
+# Quick Start & Data Instructions - now collapsed by default
 st.markdown('<div style="font-size: 1.6rem; font-weight: bold; margin-bottom: 10px;"> Quick Start & Data Instructions</div>', unsafe_allow_html=True)
-with st.expander("**Setting Up Your Data**", expanded=True):
+with st.expander("**Setting Up Your Data**", expanded=False):  # Changed to expanded=False
     st.markdown('<div class="quickstart" style="margin-top:-1rem;">', unsafe_allow_html=True)
     
     if tool.startswith("NOS"):
@@ -202,7 +195,6 @@ To work correctly with **Critiplot**, your uploaded table should follow this str
             st.dataframe(pd.read_csv(sample_csv_path), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Download buttons
         excel_file_path = "nos_data.xlsx"
         csv_file_path = "nos_data.csv"
         def file_to_b64(path):
@@ -251,7 +243,6 @@ To work correctly with **Critiplot**, your uploaded table should follow this str
             st.dataframe(pd.read_csv(sample_csv_path), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Download buttons
         excel_file_path = "grade_data.xlsx"
         csv_file_path = "grade_data.csv"
         def file_to_b64(path):
@@ -298,7 +289,6 @@ To work correctly with **Critiplot**, your uploaded table should follow this str
             st.dataframe(pd.read_csv(sample_csv_path), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Download buttons
         excel_file_path = "robis_data.xlsx"
         csv_file_path = "robis_data.csv"
         def file_to_b64(path):
@@ -350,7 +340,6 @@ To work correctly with **Critiplot**, your uploaded table should follow this str
             st.dataframe(pd.read_csv(sample_csv_path), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Download buttons
         excel_file_path = "case_report.xlsx"
         csv_file_path = "case_report.csv"
         def file_to_b64(path):
@@ -404,7 +393,6 @@ To work correctly with **Critiplot**, your uploaded table should follow this str
             st.dataframe(pd.read_csv(sample_csv_path), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Download buttons
         excel_file_path = "case_series.xlsx"
         csv_file_path = "case_series.csv"
         def file_to_b64(path):
@@ -425,12 +413,11 @@ To work correctly with **Critiplot**, your uploaded table should follow this str
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Upload & process
+
 st.markdown("### Upload Your Data")
 st.markdown('<p style="color: #ffff; font-size: 1.1rem;">Please upload your file in <b>CSV</b> or <b>Excel (.xlsx)</b> format. <b>Maximum file size: 20MB per file.</b></p>', unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Choose a CSV or Excel file", type=["csv","xls","xlsx"], key=f"file_uploader_{tool}")
 
-# Theme selection per tool
 if tool.startswith("NOS"):
     theme_options = ["default", "blue", "gray", "smiley", "smiley_blue"]
 elif tool == "GRADE":
@@ -448,30 +435,25 @@ theme = st.selectbox(
     key=f"theme_{tool}"
 )
 
-# Initialize variables
 df = None
 tmp_file_path = None
 temp_dir = None
 
 if uploaded_file is not None:
     try:
-        # Validate file size (20MB limit)
         if uploaded_file.size > 20 * 1024 * 1024:  
             st.error("❌ File size exceeds the 20MB limit per file. Please upload a smaller file.")
             st.stop()
             
-        # Validate file format
         file_ext = os.path.splitext(uploaded_file.name)[1].lower()
         if file_ext not in ['.csv', '.xlsx', '.xls']:
             st.error(f"❌ Invalid file format: '{file_ext}'. Please upload a CSV or Excel file.")
             st.stop()
             
-        # Create a temporary file to pass to the imported functions
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
             tmp_file.write(uploaded_file.getvalue())
             tmp_file_path = tmp_file.name
         
-        # Process data based on selected tool
         if tool.startswith("NOS"):
             df = read_nos_file(tmp_file_path)
             df = process_detailed_nos(df)
@@ -503,19 +485,16 @@ if uploaded_file is not None:
             plot_function = professional_jbi_series_plot
             plot_name = "JBI_Case_Series"
 
-        # Create temporary directory for output files
         temp_dir = tempfile.mkdtemp()
         output_files = {ext: os.path.join(temp_dir, f"{plot_name}_TrafficLight{ext}") for ext in [".png",".pdf",".svg",".eps"]}
         
-        # Generate plots
         for out_ext, path in output_files.items():
             plot_function(df, path, theme=theme)
-            plt.close('all')  # Close all figures to free memory
+            plt.close('all') 
 
         st.markdown("### Visualization Preview")
         st.image(output_files[".png"], width='stretch')
 
-        # Download buttons
         st.markdown("###  Download Visualization")
         st.markdown('<p style="color: #ffff; font-size: 1.1rem;">Download your Critiplot visualisation in formats like:</p>', unsafe_allow_html=True)
 
@@ -530,25 +509,28 @@ if uploaded_file is not None:
         
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")
-        st.markdown("Ensure your file follows the template structure shown above.")
-        st.markdown("Please check that you strictly follow the tool's specific template for each specific RoB. Also do make sure there are no AI generated invisible marks or spaces which may sometimes cause errors. Lastly, Always check the type of RoB selected for the specific RoB the user is uploading and expecting the results for.")
-        st.markdown("IMPORTANT: Say the Template suggests \"Very Low\" or \"Low Risk\" to be written for a domain, that's how it should be. \"Very low\" or \"Low risk\" or \"low risk\" will not be coloured by the tool and the tool will ignore this domain in the plot generated.")
+        st.markdown("""
+**Please ensure your data meets these requirements:**
+
+* **First, always verify you've selected the correct Risk of Bias (RoB) assessment tool** that matches your data format. The tool you select must correspond to the type of RoB assessment you're uploading.
+
+* Your file must strictly follow the template structure shown above.
+
+* Ensure there are no AI-generated invisible marks or spaces in your data that might cause processing errors.
+
+* **Important:** Use the exact capitalization shown in the templates. For example, if the template specifies "Very Low" or "Low Risk" for a domain, you must use that exact formatting. Variations like "very low" or "low risk" will not be recognized by the tool and will result in that domain being ignored in the generated plot.
+""")
     finally:
-       
         if tmp_file_path and os.path.exists(tmp_file_path):
             os.unlink(tmp_file_path)
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-       
         df = None
-       
         import gc
         gc.collect()
 
-# Citation Section
 st.markdown("---")
 st.markdown("## Citation")
-
 
 apa_citation = (
     "Sahu, V. (2025). Critiplot: A Critical Appraisal Plot Visualiser for Risk of Bias in Systematic Reviews and Meta-Analyses (v1.0.3). "
@@ -594,12 +576,10 @@ bib_data = """@misc{Sahu2025,
   doi={10.5281/zenodo.17236600}
 }"""
 
-
 citation_style = st.selectbox(
     "Select citation style",
     ["APA", "Harvard", "MLA", "Chicago", "IEEE", "Vancouver"]
 )
-
 
 if citation_style == "APA":
     citation_text = apa_citation
@@ -657,7 +637,6 @@ document.getElementById("copy-btn").onclick = function() {{
 """
 components.html(copy_button_html, height=100)
 
-
 st.markdown("---")
 st.markdown("""
 <style>
@@ -688,6 +667,5 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Close wrappers
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
