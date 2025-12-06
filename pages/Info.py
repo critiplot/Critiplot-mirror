@@ -31,7 +31,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Hero navigation bar
+
 active_page = "Info"
 
 st.markdown(f"""
@@ -85,12 +85,12 @@ def add_background_png(png_file):
 add_background_png("./assets/background.png")
 
 
-# Page Content
+
 st.markdown('<div style="margin-top: 120px; text-align:center;">', unsafe_allow_html=True)
 st.markdown('<h1 style="font-size:3rem; font-weight:800; color:#ffffff;">Critiplot — Information & Support</h1>', unsafe_allow_html=True)
 
 
-# General Information Section 
+
 st.markdown("""
 ## General Information
 
@@ -114,7 +114,7 @@ This tool is built on **Python** and complements evidence synthesis workflows. I
 """, unsafe_allow_html=True)
 
 
-# Support Section
+
 st.markdown("---")
 st.markdown("""
 ## Support & Contact
@@ -127,7 +127,7 @@ If you encounter any issues or need support, you can:
 Feel free to reach out via either method.
 """, unsafe_allow_html=True)
 
-# Footer
+
 st.markdown("---")
 st.markdown("""
 <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; padding:1rem; font-size:1.05rem;">

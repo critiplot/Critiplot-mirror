@@ -2,7 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
-from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Patch
 
 def process_grade(df: pd.DataFrame) -> pd.DataFrame:
@@ -11,7 +10,6 @@ def process_grade(df: pd.DataFrame) -> pd.DataFrame:
     }
     df = df.rename(columns=column_map)
     
-   
     domain_columns = ["Risk of Bias", "Inconsistency", "Indirectness", "Imprecision", "Publication Bias", "Overall Certainty"]
     for col in domain_columns:
         if col in df.columns:
@@ -22,9 +20,7 @@ def process_grade(df: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-   
     df["Outcome_Display"] = df["Outcome"] + " (" + df["Study"] + ")"
-
     df['Original_Order'] = range(len(df))
     return df
 
@@ -37,13 +33,13 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
             "High":"#276B37",
             "Moderate":"#56AF29",
             "Low":"#3376AD",
-            "Very Low":"#7D7D7D",
+            "Very Low":"#5D6975",
             "None":"#B5B5B5"
         },
         "default": {  
-            "High":"#3A896F",
-            "Moderate":"#AEBF2B",
-            "Low":"#FFBB00",
+            "High":"#276A42",
+            "Moderate":"#61BF61",
+            "Low":"#F4D043",
             "Very Low":"#B42222",
             "None":"#818181"
         },
@@ -60,23 +56,38 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
         raise ValueError("Invalid theme.")
     colors = theme_options[theme]
 
-    fig_height = max(6, 0.7*len(df) + 5)
-    fig = plt.figure(figsize=(18, fig_height))
-    gs = GridSpec(2,1, height_ratios=[len(df)*0.7, 1.5], hspace=0.4)
+    # Fixed parameters
+    n_studies = len(df)
+    per_study_height = 0.5
+    min_first_plot_height = 4.0
+    second_plot_height = 3
+    gap_between_plots = 1.7
+    top_margin = 1.0
+    bottom_margin = 0.5
+    
 
+    first_plot_height = max(min_first_plot_height, n_studies * per_study_height)
+    total_height = first_plot_height + gap_between_plots + second_plot_height + top_margin + bottom_margin
+    
+
+    fig = plt.figure(figsize=(18, total_height))
+    
+
+    ax0_bottom = (bottom_margin + second_plot_height + gap_between_plots) / total_height
+    ax0_height = first_plot_height / total_height
+    
+    ax1_bottom = bottom_margin / total_height
+    ax1_height = second_plot_height / total_height
+    
+
+    ax0 = fig.add_axes([0.12, ax0_bottom, 0.75, ax0_height])
+    ax1 = fig.add_axes([0.12, ax1_bottom, 0.75, ax1_height])
 
     domains = ["Risk of Bias","Inconsistency","Indirectness","Imprecision","Publication Bias", "Overall Certainty"]
     
-
-    ax0 = fig.add_subplot(gs[0])
-    
-   
     df_copy = df.copy()
-    
-  
     outcome_order = df_copy["Outcome_Display"].tolist()
     
-   
     plot_data = []
     for _, row in df_copy.iterrows():
         for domain in domains:
@@ -88,64 +99,53 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
             })
     
     plot_df = pd.DataFrame(plot_data)
-    
-   
     plot_df["Color"] = plot_df["Certainty"].apply(lambda x: map_color(x, colors))
     
-  
     plot_df['Outcome_Display'] = pd.Categorical(
         plot_df['Outcome_Display'], 
         categories=outcome_order, 
         ordered=True
     )
     
-   
     sns.scatterplot(
         data=plot_df, 
         x="Domain", 
         y="Outcome_Display",
         hue="Color", 
         palette={c:c for c in plot_df["Color"].unique()},
-        s=350, 
+        s=800, 
         marker="s", 
         legend=False, 
         ax=ax0
     )
     
-
     ax0.set_yticks(range(len(outcome_order)))
     ax0.set_yticklabels(outcome_order, fontsize=10, fontweight="bold")
     
-
-    for y in range(len(outcome_order)+1):
-        ax0.axhline(y-0.5, color='lightgray', linewidth=0.8, zorder=0)
-
+    for y in range(len(outcome_order)):
+        ax0.axhline(y, color='lightgray', linewidth=0.8, zorder=0)
+    ax0.axhline(-0.5, color='lightgray', linewidth=0.8, zorder=0)
+    ax0.axhline(len(outcome_order)-0.5, color='lightgray', linewidth=0.8, zorder=0)
 
     ax0.set_xticks(range(len(domains)))
     ax0.set_xticklabels(domains, fontsize=12, fontweight="bold")
     ax0.set_xlim(-0.5, len(domains)-0.5)
+
     ax0.set_ylim(-0.5, len(outcome_order)-0.5)
     ax0.set_facecolor("white")
-
 
     ax0.set_title("GRADE Traffic-Light Plot", fontsize=18, fontweight="bold")
     ax0.set_xlabel("GRADE Domains", fontsize=12, fontweight="bold")
     ax0.set_ylabel("", fontsize=12, fontweight="bold")
     ax0.tick_params(axis='y', labelsize=10)
 
-
     legend_elements = [Patch(facecolor=colors[c], edgecolor='black', label=c) for c in ["High","Moderate","Low","Very Low","None"]]
     leg = ax0.legend(handles=legend_elements, title="Certainty", bbox_to_anchor=(1.02,1), loc='upper left', frameon=True, borderpad=1)
     plt.setp(leg.get_texts(), fontweight="bold")
     plt.setp(leg.get_title(), fontweight="bold")
 
- 
-    ax1 = fig.add_subplot(gs[1])
-    
-
     bar_data = []
     for domain in domains:
-       
         certainty_counts = df_copy[domain].value_counts()
         total = certainty_counts.sum()
         
@@ -161,25 +161,20 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
     
     bar_df = pd.DataFrame(bar_data)
     
+
+    inverted_domains = domains[::-1]
+    bar_df['Domain'] = pd.Categorical(bar_df['Domain'], categories=inverted_domains, ordered=True)
     
-    bar_df['Domain'] = pd.Categorical(
-        bar_df['Domain'], 
-        categories=domains, 
-        ordered=True
-    )
-    
-    
-    bottom = pd.Series([0.0] * len(domains), index=domains)
+    bottom = pd.Series([0.0] * len(inverted_domains), index=inverted_domains)
     for cert in ["Very Low", "Low", "Moderate", "High", "None"]:
         cert_data = bar_df[bar_df['Certainty'] == cert]
         if not cert_data.empty:
-            
-            cert_series = pd.Series(0.0, index=domains)
+            cert_series = pd.Series(0.0, index=inverted_domains)
             for _, row in cert_data.iterrows():
                 cert_series[row['Domain']] = row['Percentage']
             
             ax1.barh(
-                range(len(domains)), 
+                range(len(inverted_domains)), 
                 cert_series, 
                 left=bottom,
                 color=colors[cert], 
@@ -188,8 +183,7 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
                 label=cert
             )
             
-            
-            for i, domain in enumerate(domains):
+            for i, domain in enumerate(inverted_domains):
                 val = cert_series[domain]
                 if val > 0: 
                     ax1.text(
@@ -205,30 +199,22 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
             
             bottom = bottom + cert_series
 
-  
     ax1.set_xlim(0,100)
     ax1.set_xlabel("Percentage (%)", fontsize=12, fontweight="bold")
     ax1.set_ylabel("", fontsize=12, fontweight="bold")
     ax1.set_title("Distribution of GRADE Judgments by Domain", fontsize=18, fontweight="bold")
     
-  
-    ax1.set_yticks(range(len(domains)))
-    ax1.set_yticklabels(domains, fontsize=12, fontweight="bold")
-   
-   
-    for y in range(len(domains)):
+    ax1.set_yticks(range(len(inverted_domains)))
+    ax1.set_yticklabels(inverted_domains, fontsize=12, fontweight="bold")
+    
+    for y in range(len(inverted_domains)):
         ax1.axhline(y-0.5, color='lightgray', linewidth=0.8, zorder=0)
 
-    
     for label in ax1.get_xticklabels():
         label.set_fontweight("bold")
     for label in ax1.get_yticklabels():
         label.set_fontweight("bold")
 
-   
-    fig.subplots_adjust(left=0.05, right=0.78, top=0.95, bottom=0.05, hspace=0.4)
-
-    
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"✅ GRADE plot saved to {output_file}")
