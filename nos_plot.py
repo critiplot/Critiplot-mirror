@@ -256,7 +256,7 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
     )
     plt.setp(legend.get_title(), fontweight='bold')
     for text in legend.get_texts():
-        text.set_fontweight='bold'  
+        text.set_fontweight('bold')  
 
     valid_ext = [".png", ".pdf", ".svg", ".eps"]
     ext = os.path.splitext(output_file)[1].lower()
