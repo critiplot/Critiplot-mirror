@@ -101,39 +101,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-active_page = st.session_state.get("active_page", "Home")
-
-st.markdown(f"""
-<div style="
-    position: absolute;
-    top: -1rem;
-    left: 0.1rem;
-    display: flex;
-    gap: 30px;
-    padding: 0.1rem 0.1rem;
-    background-color: rgba(0,0,0,0);
-    z-index: 9999;
-    border-radius: 5px;
-    font-size: 1.4rem;
-    font-weight: 400;
-">
-    <a href="/" target="_self" style="color: {'#3498db' if active_page=='Home' else '#ffffff'}; text-decoration:none; transition: color 0.3s;" class="nav-link{' active' if active_page=='Home' else ''}">Home</a>
-    <a href="/Info" target="_self" style="color: {'#3498db' if active_page=='Info' else '#ffffff'}; text-decoration:none; transition: color 0.3s;" class="nav-link{' active' if active_page=='Info' else ''}">Info</a>
-</div>
-
-<style>
-div[style*='position: absolute'] a.nav-link {{
-    color: #ffffff !important;
-}}
-div[style*='position: absolute'] a.nav-link:hover:not(.active) {{
-    color:#aaaaaa !important;
-}}
-div[style*='position: absolute'] a.nav-link.active {{
-    color: #3498db !important;
-}}
-</style>
-""", unsafe_allow_html=True)
-
 def add_background_png(png_file):
     if os.path.exists(png_file):
         with open(png_file, "rb") as f:
