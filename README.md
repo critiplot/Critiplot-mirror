@@ -255,3 +255,7 @@ Here’s an example traffic-light plot generated using Critiplot with different 
 
 ![Example Result990999](example/MMAT9.png)
 **MMAT Randomized Plot**
+
+
+![Example Result9909990](example/MMAT6.png)
+**MMAT Qualitative Plot**
