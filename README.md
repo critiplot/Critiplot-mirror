@@ -1,6 +1,6 @@
 ![Preview](assets/preview1.png)
 
-[![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/)
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![Streamlit Demo](https://img.shields.io/badge/Streamlit-Demo-orange)](https://critiplot.streamlit.app)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17236600.svg)](https://doi.org/10.5281/zenodo.17236600)
@@ -11,9 +11,9 @@
 * **JBI Critical Appraisal Checklists** (Case Report / Case Series)
 * **GRADE certainty of evidence**
 * **ROBIS for systematic reviews**
+* **Mixed Methods Appraisal Tool (MMAT)**
 
 It produces **publication-ready traffic-light plots** and **stacked bar charts**, allowing researchers to summarize study quality clearly in systematic reviews and meta-analyses.
-
 
 ---
 
@@ -42,7 +42,7 @@ Streamlit User-Inferface
 
 * Converts risk-of-bias ratings into **traffic-light plots**.
 * Generates **publication-quality figures** in multiple formats: `.png`, `.pdf`, `.svg`, `.eps`.
-* Supports **NOS, JBI (Case Report / Case Series), GRADE, and ROBIS**.
+* Supports **NOS, JBI (Case Report / Case Series), GRADE, ROBIS and MMAT**.
 * Open-source, fully reproducible, usable via **Python scripts** or **Streamlit web app**.
 * Adjustable **themes, figure sizes, line thickness, and legends**.
 
@@ -64,7 +64,7 @@ cd Critiplot
 pip install -r requirements.txt
 ```
 
-> Tested with **Python 3.10+**, **Matplotlib**, **Seaborn**, and **Pandas**.
+> Tested with **Python 3.11+**, **Matplotlib**, **Seaborn**, and **Pandas**.
 
 ---
 
@@ -81,6 +81,7 @@ Separate scripts are available for each assessment tool:
 | `jbi_case_series_plot.py` | JBI Case Series CSV/XLSX | PNG/PDF/SVG/EPS | For case series studies                           |
 | `grade_plot.py`           | GRADE CSV/XLSX           | PNG/PDF/SVG/EPS | Summarizes certainty of evidence                  |
 | `robis_plot.py`           | ROBIS CSV/XLSX           | PNG/PDF/SVG/EPS | Summarizes systematic review risk-of-bias         |
+| `mmat_plot.py`            | MMAT CSV/XLSX            | PNG/PDF/SVG/EPS | Used for Mixed Methods Appraisal Tool studies     |
 
 #### Example Commands
 
@@ -104,11 +105,15 @@ python3 grade_plot.py grade_data.xlsx grade_plot.png
 # ROBIS
 python3 robis_plot.py robis_data.csv robis_plot.png
 python3 robis_plot.py robis_data.xlsx robis_plot.png
+
+# MMAT
+python3 mmat_plot.py mmat_data.csv mmat_plot.png
+python3 mmat_plot.py mmats_data.xlsx mmat_plot.png
 ```
 
 ---
 
-> Optional `[theme]` argument for **NOS, JBI Case Report / Case Series, and ROBIS**:
+> Optional `[theme]` argument for **NOS, JBI Case Report / Case Series, MMAT and ROBIS**:
 > `"default"`, `"blue"`, `"gray"`, `"smiley"`, `"smiley_blue"`
 >
 > ⚠️ **Note:** For **GRADE**, these themes are not available. Instead, GRADE supports:
@@ -190,7 +195,7 @@ If you use **Critiplot** in your work, please cite:
 
 **APA:**
 
-> Sahu, V. (2025). *Critiplot: A Critical Appraisal Plot Visualiser for Risk of Bias in Systematic Reviews and Meta-Analyses (v1.1.0)*. (https://doi.org/10.5281/zenodo.17236600)
+> Sahu, V. (2025). *Critiplot: A Critical Appraisal Plot Visualiser for Risk of Bias in Systematic Reviews and Meta-Analyses (v1.2.0)*. (https://doi.org/10.5281/zenodo.17236600)
 
 **Other formats:**
 
@@ -211,38 +216,42 @@ Apache 2.0 © 2025 Vihaan Sahu
 Here’s an example traffic-light plot generated using Critiplot with different themes:
 
 ![Example Result](example/result.png)
-![Example Result11](example/result1.png)
 ![Example Result22](example/result2.png)
-![Example Result33](example/nos_result.png)
-![Example Result44](example/nos_result2.png)
 **NOS**
 
 
 ![Example Result1](example/grade_result2.png)
-![Example Result12](example/grade_result1.png)
 ![Example Result13](example/grade_result3.png)
 **GRADE**
 
 
-![Example Result2](example/robis_result5.png)
 ![Example Result21](example/robis_result4.png)
 ![Example Result23](example/robis_result3.png)
-![Example Result29](example/robis_result2.png)
-![Example Result26](example/robis_result1.png)
 **ROBIS**
 
 
-![Example Result3](example/case_report3.png)
+
 ![Example Result34](example/case_report.png)
-![Example Result36](example/case_report1.png)
 ![Example Result37](example/case_report2.png)
-![Example Result38](example/case_report4.png)
 **JBI Case Report**
 
 
 ![Example Result4](example/series_plot1.png)
-![Example Result41](example/series_plot.png)
-![Example Result42](example/series_plot2.png)
 ![Example Result43](example/series_plot4.png)
-![Example Result46](example/series_plot5.png)
 **JBI Case Series**
+
+
+![Example Result990](example/MMAT2.png)
+**MMAT Descriptive Plot**
+
+
+![Example Result9909](example/MMAT7.png)
+**MMAT Non-Randomized Plot**
+
+
+![Example Result99099](example/MMAT8.png)
+**MMAT Mixed-Methods Plot**
+
+
+![Example Result990999](example/MMAT9.png)
+**MMAT Randomized Plot**
