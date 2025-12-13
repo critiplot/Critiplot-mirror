@@ -4,11 +4,9 @@ import seaborn as sns
 import sys
 import os
 from matplotlib.lines import Line2D
-
-
+from collections import defaultdict
 
 def process_jbi_case_report(df: pd.DataFrame) -> pd.DataFrame:
-    
     if "Author,Year" not in df.columns:
         if "Author, Year" in df.columns:
             df = df.rename(columns={"Author, Year": "Author,Year"})
@@ -46,15 +44,11 @@ def process_jbi_case_report(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-
 def stars_to_rob(score):
     return "Low" if score == 1 else "High"
 
 def map_color(score, colors):
     return colors.get(stars_to_rob(score), "#BBBBBB")
-
-
 
 def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "default"):
     theme_options = {
@@ -72,14 +66,13 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
     domains = ["Demographics", "History", "ClinicalCondition", "Diagnostics",
                "Intervention", "PostCondition", "AdverseEvents", "Lessons", "Overall RoB"]
 
-    # Fixed 
     n_studies = len(df)
     per_study_height = 0.5      
     min_first_plot_height = 4.0
     second_plot_height = 4.5    
     gap_between_plots = 3.0   
     top_margin = 1.0            
-    bottom_margin = 0.5       
+    bottom_margin = 0.5        
     
     first_plot_height = max(min_first_plot_height, n_studies * per_study_height)
     total_height = first_plot_height + gap_between_plots + second_plot_height + top_margin + bottom_margin
@@ -95,28 +88,8 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
     ax0 = fig.add_axes([0.12, ax0_bottom, 0.75, ax0_height])
     ax1 = fig.add_axes([0.12, ax1_bottom, 0.75, ax1_height])
     
-    plot_data = []
-    for _, row in df.iterrows():
-        for domain in domains[:-1]: 
-            plot_data.append({
-                "Author,Year": row["Author,Year"],
-                "Domain": domain,
-                "Score": row[domain],
-                "Type": "score"
-            })
-
-        plot_data.append({
-            "Author,Year": row["Author,Year"],
-            "Domain": "Overall RoB",
-            "Score": row["Overall RoB"],
-            "Type": "rob"
-        })
-    
-    plot_df = pd.DataFrame(plot_data)
-
     domain_pos = {d:i for i,d in enumerate(domains)}
     author_pos = {a:i for i,a in enumerate(df["Author,Year"].tolist())}
-
 
     for y in range(len(author_pos)):
         ax0.axhline(y, color='lightgray', linewidth=0.8, zorder=0)
@@ -124,54 +97,53 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
     ax0.axhline(len(author_pos)-0.5, color='lightgray', linewidth=0.8, zorder=0)
 
     if theme.startswith("smiley"):
-        def score_to_symbol(score, domain):
-            if domain == "Overall RoB":
-                return "☺" if score == "Low" else "☹"
-            return "☺" if score == 1 else "☹"
+        for _, row in df.iterrows():
+            author = row["Author,Year"]
+            y_pos = author_pos[author]
+            
+            for domain in domains[:-1]:
+                x_pos = domain_pos[domain]
+                symbol = "☺" if row[domain] == 1 else "☹"
+                color = colors[stars_to_rob(row[domain])]
+                ax0.text(x_pos, y_pos, symbol, fontsize=30, ha='center', va='center', 
+                         color=color, fontweight='bold', zorder=1)
+            
+            x_pos = domain_pos["Overall RoB"]
+            symbol = "☺" if row["Overall RoB"] == "Low" else "☹"
+            color = colors.get(row["Overall RoB"], "#BBBBBB")
+            ax0.text(x_pos, y_pos, symbol, fontsize=30, ha='center', va='center', 
+                     color=color, fontweight='bold', zorder=1)
         
-        plot_df["Symbol"] = plot_df.apply(lambda x: score_to_symbol(x["Score"], x["Domain"]), axis=1)
-        plot_df["Color"] = plot_df.apply(
-            lambda x: colors.get(x["Score"], "#BBBBBB") if x["Domain"] == "Overall RoB" 
-            else colors[stars_to_rob(x["Score"])], 
-            axis=1
-        )
-        
-        for i, row in plot_df.iterrows():
-            ax0.text(domain_pos[row["Domain"]], author_pos[row["Author,Year"]],
-                     row["Symbol"], fontsize=30, ha='center', va='center', color=row["Color"], fontweight='bold', zorder=1)
         ax0.set_xticks(range(len(domains)))
-
         ax0.set_xticklabels(domains, fontsize=14, fontweight="bold", rotation=45, ha='right')
         ax0.set_yticks(list(author_pos.values()))
         ax0.set_yticklabels(list(author_pos.keys()), fontsize=11, fontweight="bold", rotation=0)
-
         ax0.set_ylim(-0.5, len(author_pos)-0.5)
         ax0.set_xlim(-0.5, len(domains)-0.5)
         ax0.set_facecolor('white')
     else:
-        plot_df["Color"] = plot_df.apply(
-            lambda x: colors.get(x["Score"], "#BBBBBB") if x["Domain"] == "Overall RoB" 
-            else map_color(x["Score"], colors), 
-            axis=1
-        )
-        palette = {c:c for c in plot_df["Color"].unique()}
-        sns.scatterplot(
-            data=plot_df,
-            x="Domain",
-            y="Author,Year",
-            hue="Color",
-            palette=palette,
-            s=800,
-            marker="s",
-            legend=False,
-            ax=ax0
-        )
+        x_coords = []
+        y_coords = []
+        colors_list = []
+        
+        for _, row in df.iterrows():
+            author = row["Author,Year"]
+            y_pos = author_pos[author]
+            
+            for domain in domains[:-1]:
+                x_coords.append(domain_pos[domain])
+                y_coords.append(y_pos)
+                colors_list.append(map_color(row[domain], colors))
+            
+            x_coords.append(domain_pos["Overall RoB"])
+            y_coords.append(y_pos)
+            colors_list.append(colors.get(row["Overall RoB"], "#BBBBBB"))
+        
+        ax0.scatter(x_coords, y_coords, c=colors_list, s=800, marker="s", zorder=1)
         ax0.set_xticks(range(len(domains)))
-
         ax0.set_xticklabels(domains, fontsize=14, fontweight="bold", rotation=45, ha='right')
         ax0.set_yticks(list(author_pos.values()))
         ax0.set_yticklabels(list(author_pos.keys()), fontsize=11, fontweight="bold", rotation=0)
-
         ax0.set_ylim(-0.5, len(author_pos)-0.5)
 
     ax0.set_title("JBI Case Report Traffic-Light Plot", fontsize=18, fontweight="bold")
@@ -179,54 +151,40 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
     ax0.set_ylabel("")
     ax0.grid(axis='x', linestyle='--', alpha=0.25)
 
-
-    stacked_data = []
+    risk_counts = defaultdict(lambda: defaultdict(int))
     
-
     for _, row in df.iterrows():
-        for domain in domains[:-1]:  
+        for domain in domains[:-1]:
             risk = stars_to_rob(row[domain])
-            stacked_data.append({
-                "Domain": domain,
-                "RoB": risk
-            })
-
-        stacked_data.append({
-            "Domain": "Overall RoB",
-            "RoB": row["Overall RoB"]
-        })
-    
-    stacked_df = pd.DataFrame(stacked_data)
-    
-    counts = stacked_df.groupby(["Domain", "RoB"]).size().unstack(fill_value=0)
-    
-    for risk in ["Low", "High"]:
-        if risk not in counts.columns:
-            counts[risk] = 0
-    
-
-    counts_percent = counts.div(counts.sum(axis=1), axis=0) * 100
-    
+            risk_counts[domain][risk] += 1
+        
+        risk_counts["Overall RoB"][row["Overall RoB"]] += 1
     
     inverted_domains = domains[::-1]
-    counts_percent = counts_percent.reindex(inverted_domains)
+    high_counts = []
+    low_counts = []
     
-    bottom = None
-    for rob in ["High", "Low"]:
-        if rob in counts_percent.columns:
-            ax1.barh(counts_percent.index, counts_percent[rob], left=bottom, color=colors[rob], edgecolor='black', label=rob)
-            bottom = counts_percent[rob] if bottom is None else bottom + counts_percent[rob]
-
-    for i, domain in enumerate(counts_percent.index):
-        left = 0
-        for rob in ["High", "Low"]:
-            if rob in counts_percent.columns:
-                width = counts_percent.loc[domain, rob]
-                if width > 0:
-                    ax1.text(left + width/2, i, f"{width:.0f}%", ha='center', va='center', 
-                             color='black', fontsize=14, fontweight='bold')
-                    left += width
-
+    for domain in inverted_domains:
+        high_counts.append(risk_counts[domain].get("High", 0))
+        low_counts.append(risk_counts[domain].get("Low", 0))
+    
+    totals = [h + l for h, l in zip(high_counts, low_counts)]
+    high_percent = [h / t * 100 if t > 0 else 0 for h, t in zip(high_counts, totals)]
+    low_percent = [l / t * 100 if t > 0 else 0 for l, t in zip(low_counts, totals)]
+    
+    y_positions = range(len(inverted_domains))
+    
+    ax1.barh(y_positions, high_percent, color=colors["High"], edgecolor='black', label='High')
+    ax1.barh(y_positions, low_percent, left=high_percent, color=colors["Low"], edgecolor='black', label='Low')
+    
+    for i, (hp, lp) in enumerate(zip(high_percent, low_percent)):
+        if hp > 0:
+            ax1.text(hp/2, i, f"{hp:.0f}%", ha='center', va='center', 
+                     color='black', fontsize=14, fontweight='bold')
+        if lp > 0:
+            ax1.text(hp + lp/2, i, f"{lp:.0f}%", ha='center', va='center', 
+                     color='black', fontsize=14, fontweight='bold')
+    
     ax1.set_xlim(0,100)
     ax1.set_xticks([0,20,40,60,80,100])
     ax1.set_xticklabels([0,20,40,60,80,100], fontsize=14, fontweight='bold')  
@@ -265,22 +223,18 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
     if ext not in valid_ext:
         raise ValueError(f"Unsupported file format: {ext}. Use one of {valid_ext}")
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
+    plt.close(fig)
     print(f"✅ Professional JBI plot saved to {output_file}")
-
-
 
 def read_input_file(file_path: str) -> pd.DataFrame:
     ext = os.path.splitext(file_path)[1].lower()
     if ext in [".csv"]:
-        return pd.read_csv(file_path)
+        return pd.read_csv(file_path, engine='c')
     elif ext in [".xls", ".xlsx"]:
-        return pd.read_excel(file_path)
+        return pd.read_excel(file_path, engine='openpyxl')
     else:
         raise ValueError(f"Unsupported file format: {ext}. Provide a CSV or Excel file.")
 
-
-# Main
 if __name__ == "__main__":
     if len(sys.argv) not in [3,4]:
         print("Usage: python3 jbi_plot.py input_file output_file.(png|pdf|svg|eps) [theme]")
@@ -296,3 +250,4 @@ if __name__ == "__main__":
     df = read_input_file(input_file)
     df = process_jbi_case_report(df)
     professional_jbi_plot(df, output_file, theme)
+    del df

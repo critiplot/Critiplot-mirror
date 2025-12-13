@@ -223,9 +223,9 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
     ax1.set_xticklabels([0, 20, 40, 60, 80, 100], fontsize=12, fontweight='bold')
     ax1.set_yticks(range(len(inverted_domains)))
     ax1.set_yticklabels(inverted_domains, fontsize=12, fontweight='bold')
-    ax1.set_xlabel("Percentage of Studies (%)", fontsize=14, fontweight="bold")
+    ax1.set_xlabel("Percentage of Studies (%)", fontsize=14, fontweight='bold')
     ax1.set_ylabel("")
-    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=18, fontweight="bold")
+    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=18, fontweight='bold')
     ax1.grid(axis='x', linestyle='--', alpha=0.25)
     
     
@@ -253,8 +253,9 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
         edgecolor='black'
     )
     plt.setp(legend.get_title(), fontweight='bold')
+  
     for text in legend.get_texts():
-        text.set_fontweight='bold'  
+        text.set_fontweight('bold')
     
 
     valid_ext = [".png", ".pdf", ".svg", ".eps"]
