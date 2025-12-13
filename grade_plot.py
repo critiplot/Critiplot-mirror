@@ -187,7 +187,7 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
                 val = cert_series[domain]
                 if val > 0: 
                     ax1.text(
-                        bottom[i] + val/2, 
+                        bottom.iloc[i] + val/2,  
                         i, 
                         f"{val:.1f}%", 
                         va='center', 
