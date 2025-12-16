@@ -1,12 +1,23 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import sys
 from matplotlib.patches import Patch
-from collections import defaultdict
+import numpy as np
+import re
+import matplotlib
+matplotlib.use('Agg')  
+import gc 
 
 def process_grade(df: pd.DataFrame) -> pd.DataFrame:
     """Process GRADE data with memory optimizations"""
+
+    for col in df.select_dtypes(include=['int64']).columns:
+        df[col] = pd.to_numeric(df[col], downcast='integer')
+    for col in df.select_dtypes(include=['float64']).columns:
+        df[col] = pd.to_numeric(df[col], downcast='float')
+    
+    df = df.rename(columns=lambda x: x.replace('_', ' '))
+    
     column_map = {
         "Other Considerations": "Publication Bias"
     }
@@ -15,14 +26,53 @@ def process_grade(df: pd.DataFrame) -> pd.DataFrame:
     domain_columns = ["Risk of Bias", "Inconsistency", "Indirectness", "Imprecision", "Publication Bias", "Overall Certainty"]
     for col in domain_columns:
         if col in df.columns:
-            df[col] = df[col].fillna("None")
+            df[col] = df[col].astype(str)
+            df[col] = df[col].apply(lambda x: re.sub(r'[\x00-\x1f\x7f-\x9f]', '', str(x)).strip())
+            df[col] = df[col].replace(['', 'nan', 'NaN', 'None', 'N/A', 'NA'], "Not serious")
+            
+            mapping_dict = {
+                "not serious": "Not serious", "notserious": "Not serious", "not_serious": "Not serious",
+                "none": "Not serious", "no": "Not serious", "n/a": "Not serious", "na": "Not serious",
+                "serious": "Serious", "yes": "Serious",
+                "very serious": "Very serious", "veryserious": "Very serious", "very_serious": "Very serious",
+                "high": "High", "moderate": "Moderate", "low": "Low",
+                "very low": "Very low", "verylow": "Very low", "very_low": "Very low",
+                "Not Serious": "Not serious", "Notserious": "Not serious", "Not_serious": "Not serious",
+                "None": "Not serious", "No": "Not serious", "N/A": "Not serious", "NA": "Not serious",
+                "Serious": "Serious", "Yes": "Serious",
+                "Very Serious": "Very serious", "Veryserious": "Very serious", "Very_serious": "Very serious",
+                "High": "High", "Moderate": "Moderate", "Low": "Low",
+                "Very Low": "Very low", "Verylow": "Very low", "Very_low": "Very low"
+            }
+            
+            df[col] = df[col].str.lower().map(mapping_dict).fillna(df[col])
     
-    required_columns = ["Outcome","Study","Risk of Bias","Inconsistency","Indirectness","Imprecision","Publication Bias","Overall Certainty"]
+    required_columns = ["Outcome","Risk of Bias","Inconsistency","Indirectness","Imprecision","Publication Bias","Overall Certainty"]
     missing = [c for c in required_columns if c not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
-
-    df["Outcome_Display"] = df["Outcome"] + " (" + df["Study"] + ")"
+    
+    domain_values = {"Not serious", "Serious", "Very serious"}
+    certainty_values = {"High", "Moderate", "Low", "Very low"}
+    
+    if "Publication Bias" in df.columns and "Overall Certainty" in df.columns:
+        swap_count = 0
+        for idx, row in df.iterrows():
+            pub_bias = row["Publication Bias"]
+            overall_cert = row["Overall Certainty"]
+            
+            if pub_bias in certainty_values and overall_cert in domain_values:
+                df.at[idx, "Publication Bias"] = overall_cert
+                df.at[idx, "Overall Certainty"] = pub_bias
+                swap_count += 1
+        
+        if swap_count > 0:
+            print(f"Swapped values in {swap_count} rows between Publication Bias and Overall Certainty columns")
+    
+    if "Study" not in df.columns:
+        df["Study"] = "Study"
+    
+    df["Outcome_Display"] = df["Outcome"]
     df['Original_Order'] = range(len(df))
     return df
 
@@ -31,28 +81,19 @@ def map_color(certainty, colors):
     return colors.get(certainty, "grey")
 
 def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
-    """Create GRADE plot with memory optimizations"""
+    """Create GRADE plot with professional design similar to robvis"""
     theme_options = {
         "green": {  
-            "High":"#276B37",
-            "Moderate":"#56AF29",
-            "Low":"#3376AD",
-            "Very Low":"#5D6975",
-            "None":"#B5B5B5"
+            "High":"#276A42", "Moderate":"#58C85A", "Low":"#FFDA45", "Very low":"#DD4242",
+            "Not serious":"#58C85A", "Serious":"#DD4242", "Very serious":"#691625"  
         },
         "default": {  
-            "High":"#276A42",
-            "Moderate":"#61BF61",
-            "Low":"#F4D043",
-            "Very Low":"#B42222",
-            "None":"#818181"
+            "High":"#2E7D32", "Moderate":"#F78710", "Low":"#F4C81B", "Very low":"#C62828",
+            "Not serious":"#2E7D32", "Serious":"#FCB33C", "Very serious":"#C62828"
         },
         "blue": {  
-            "High":"#006699",
-            "Moderate":"#3399CC",
-            "Low":"#FFCC66",
-            "Very Low":"#CC3333",
-            "None":"#B0B0B0"
+            "High":"#006699", "Moderate":"#3399CC", "Low":"#F4C81B", "Very low":"#CC3333",
+            "Not serious":"#3399CC", "Serious":"#CC3333", "Very serious":"#8B0000"  
         }
     }
 
@@ -60,161 +101,220 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
         raise ValueError("Invalid theme.")
     colors = theme_options[theme]
 
-
     n_studies = len(df)
-    per_study_height = 0.5
-    min_first_plot_height = 4.0
-    second_plot_height = 3
-    gap_between_plots = 1.7
-    top_margin = 1.0
-    bottom_margin = 0.5
     
-    first_plot_height = max(min_first_plot_height, n_studies * per_study_height)
-    total_height = first_plot_height + gap_between_plots + second_plot_height + top_margin + bottom_margin
+    base_plot_height = 2.8  
     
-    fig = plt.figure(figsize=(18, total_height))
+    if n_studies <= 5:
+        height_per_study = 0.3 
+    elif n_studies <= 10:
+        height_per_study = 0.49  
+    elif n_studies <= 20:
+        height_per_study = 0.63  
+    elif n_studies <= 50:
+        height_per_study = 0.85  
+    else:
+        height_per_study = 0.9 
     
+    plot_height = base_plot_height + (n_studies * height_per_study)
+    
+    legend_text_height = 2.5
+    
+    total_figure_height = plot_height + legend_text_height
+    
+    max_figure_height = 100.0
+    if total_figure_height > max_figure_height:
+        scale_factor = max_figure_height / total_figure_height
+        plot_height = plot_height * scale_factor
+        total_figure_height = max_figure_height
+        print(f"Scaling down figure to {max_figure_height} inches to prevent memory issues")
+    
+    dpi = 300
+    max_pixels = 178956970  
+    safe_max_pixels = max_pixels * 0.85
+    estimated_pixels = 24 * total_figure_height * dpi * dpi
+    
+    if estimated_pixels > safe_max_pixels:
+        dpi = int(np.sqrt(safe_max_pixels / (24 * total_figure_height)))
+        dpi = max(dpi, 50)
+        print(f"Reducing DPI to {dpi} to prevent image size error")
+    
+    fig = plt.figure(figsize=(16.8, total_figure_height), facecolor='white')
+    
+    ax_bottom = legend_text_height / total_figure_height
+    ax_height = plot_height / total_figure_height
+    ax = fig.add_axes([0.08, ax_bottom, 0.84, ax_height])
 
-    ax0_bottom = (bottom_margin + second_plot_height + gap_between_plots) / total_height
-    ax0_height = first_plot_height / total_height
-    ax1_bottom = bottom_margin / total_height
-    ax1_height = second_plot_height / total_height
-    
-    ax0 = fig.add_axes([0.12, ax0_bottom, 0.75, ax0_height])
-    ax1 = fig.add_axes([0.12, ax1_bottom, 0.75, ax1_height])
-
-    domains = ["Risk of Bias","Inconsistency","Indirectness","Imprecision","Publication Bias", "Overall Certainty"]
+    domains = ["Risk of Bias","Inconsistency","Indirectness","Imprecision","Publication Bias"]
+    overall_certainty = "Overall Certainty"
     outcome_order = df["Outcome_Display"].tolist()
     
-    
     domain_pos = {d: i for i, d in enumerate(domains)}
+    overall_pos = len(domains)
     outcome_pos = {o: i for i, o in enumerate(outcome_order)}
     
- 
-    for y in range(len(outcome_pos)):
-        ax0.axhline(y, color='lightgray', linewidth=0.8, zorder=0)
-    ax0.axhline(-0.5, color='lightgray', linewidth=0.8, zorder=0)
-    ax0.axhline(len(outcome_pos)-0.5, color='lightgray', linewidth=0.8, zorder=0)
+    y_positions = list(range(len(outcome_pos))) + [-0.5, len(outcome_pos)-0.5]
+    for y in y_positions:
+        ax.axhline(y, color='#cccccc', linewidth=1.0, zorder=0)
     
-
-    x_coords = []
-    y_coords = []
-    point_colors = []
+    ax.axvline(len(domains)-0.5, color='#999999', linewidth=1.5, linestyle='--', zorder=0)
+    
+    domain_symbol_map = {
+        "Not serious": "+",
+        "Serious": "-",
+        "Very serious": "X"
+    }
+    
+    certainty_symbol_map = {
+        "High": "+",
+        "Moderate": "~",
+        "Low": "-",
+        "Very low": "x"
+    }
     
     for _, row in df.iterrows():
         y_pos = outcome_pos[row["Outcome_Display"]]
         
-      
         for domain in domains:
             certainty = row[domain]
-            x_coords.append(domain_pos[domain])
-            y_coords.append(y_pos)
-            point_colors.append(map_color(certainty, colors))
+            x_pos = domain_pos[domain]
+            color = map_color(certainty, colors)
+            
+            ax.scatter(x_pos, y_pos, c=color, s=1960, marker="s", edgecolor='white', linewidth=2, zorder=1)  
+            symbol = domain_symbol_map.get(certainty, "?")
+            ax.text(x_pos, y_pos, symbol, color='black', fontsize=24.5, ha='center', va='center', zorder=2) 
     
-
-    ax0.scatter(x_coords, y_coords, c=point_colors, s=800, marker="s", 
-               edgecolor='white', linewidth=1, zorder=1)
-    
-  
-    ax0.set_yticks(range(len(outcome_order)))
-    ax0.set_yticklabels(outcome_order, fontsize=10, fontweight="bold")
-    ax0.set_xticks(range(len(domains)))
-    ax0.set_xticklabels(domains, fontsize=12, fontweight="bold")
-    ax0.set_xlim(-0.5, len(domains)-0.5)
-    ax0.set_ylim(-0.5, len(outcome_order)-0.5)
-    ax0.set_facecolor("white")
-    ax0.set_title("GRADE Traffic-Light Plot", fontsize=18, fontweight="bold")
-    ax0.set_xlabel("GRADE Domains", fontsize=12, fontweight="bold")
-    ax0.set_ylabel("", fontsize=12, fontweight="bold")
-    ax0.tick_params(axis='y', labelsize=10)
-
-
-    legend_elements = [Patch(facecolor=colors[c], edgecolor='black', label=c) for c in ["High","Moderate","Low","Very Low","None"]]
-    leg = ax0.legend(handles=legend_elements, title="Certainty", bbox_to_anchor=(1.02,1), loc='upper left', frameon=True, borderpad=1)
-    plt.setp(leg.get_texts(), fontweight="bold")
-    plt.setp(leg.get_title(), fontweight="bold")
-    
-   
-    bar_data = defaultdict(lambda: defaultdict(int))
-    
-
-    for domain in domains:
-        certainty_counts = df[domain].value_counts()
-        total = certainty_counts.sum()
+    for _, row in df.iterrows():
+        y_pos = outcome_pos[row["Outcome_Display"]]
+        certainty = row[overall_certainty]
+        x_pos = overall_pos
+        color = map_color(certainty, colors)
         
-        for certainty in ["High", "Moderate", "Low", "Very Low", "None"]:
-            count = certainty_counts.get(certainty, 0)
-            percentage = (count / total) * 100 if total > 0 else 0
-            bar_data[domain][certainty] = percentage
+        ax.scatter(x_pos, y_pos, c=color, s=2240, marker="o", edgecolor='white', linewidth=2, zorder=1)
+        symbol = certainty_symbol_map.get(certainty, "?")
+        ax.text(x_pos, y_pos, symbol, color='black', fontsize=24.5, ha='center', va='center', zorder=2)  
     
+    ax.set_yticks(range(len(outcome_order)))
+    ax.set_yticklabels(outcome_order, fontsize=10.5, fontweight="semibold") 
     
-    inverted_domains = domains[::-1]
-    bar_height = 0.90
+    all_columns = domains + ["Overall Certainty"]
+    ax.set_xticks(range(len(all_columns)))
+    ax.set_xticklabels(all_columns, fontsize=11.2, fontweight="semibold")  
     
-    bottom = [0.0] * len(inverted_domains)
-    for cert in ["Very Low", "Low", "Moderate", "High", "None"]:
-        values = [bar_data[domain].get(cert, 0) for domain in inverted_domains]
-        
-        ax1.barh(
-            range(len(inverted_domains)), 
-            values, 
-            left=bottom,
-            color=colors[cert], 
-            edgecolor="black", 
-            linewidth=1.5, 
-            label=cert
-        )
-        
-
-        for i, domain in enumerate(inverted_domains):
-            val = values[i]
-            if val > 0: 
-                ax1.text(
-                    bottom[i] + val/2,  
-                    i, 
-                    f"{val:.1f}%", 
-                    va='center', 
-                    ha='center', 
-                    fontsize=10, 
-                    color='black', 
-                    fontweight="bold"
-                )
-        
- 
-        bottom = [b + v for b, v in zip(bottom, values)]
+    ax.get_xticklabels()[-1].set_fontweight("bold")
+    ax.get_xticklabels()[-1].set_fontsize(11.9) 
     
-
-    ax1.set_xlim(0,100)
-    ax1.set_xlabel("Percentage (%)", fontsize=12, fontweight="bold")
-    ax1.set_ylabel("", fontsize=12, fontweight="bold")
-    ax1.set_title("Distribution of GRADE Judgments by Domain", fontsize=18, fontweight="bold")
-    ax1.set_yticks(range(len(inverted_domains)))
-    ax1.set_yticklabels(inverted_domains, fontsize=12, fontweight="bold")
+    ax.set_xlim(-0.5, len(all_columns)-0.5)
+    ax.set_ylim(-0.5, len(outcome_order)-0.5)
+    ax.set_facecolor('white')
+    ax.set_title("GRADE Evidence Profile", fontsize=15.4, fontweight="bold", pad=20) 
+    ax.set_xlabel("", fontsize=8.4, fontweight="semibold")  
+    ax.set_ylabel("", fontsize=8.4, fontweight="semibold")  
+    ax.tick_params(axis='y', labelsize=10.5)  
     
-
-    for y in range(len(inverted_domains)):
-        ax1.axhline(y-0.5, color='lightgray', linewidth=0.8, zorder=0)
+    domain_legend_elements = [
+        Patch(facecolor=colors.get("Not serious", "grey"), edgecolor='black', label="Not serious (+)"),
+        Patch(facecolor=colors.get("Serious", "grey"), edgecolor='black', label="Serious (-)"),
+        Patch(facecolor=colors.get("Very serious", "grey"), edgecolor='black', label="Very serious (X)")
+    ]
     
-
-    for label in ax1.get_xticklabels():
-        label.set_fontweight("bold")
-    for label in ax1.get_yticklabels():
-        label.set_fontweight("bold")
-
-
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
+    certainty_legend_elements = [
+        Patch(facecolor=colors.get("High", "grey"), edgecolor='black', label="High (+)"),
+        Patch(facecolor=colors.get("Moderate", "grey"), edgecolor='black', label="Moderate (~)"),
+        Patch(facecolor=colors.get("Low", "grey"), edgecolor='black', label="Low (-)"),
+        Patch(facecolor=colors.get("Very low", "grey"), edgecolor='black', label="Very low (x)")
+    ]
+    
+    legend_bottom = 0.5
+    legend_height = 1.05  
+    
+    legend_bottom_fig = legend_bottom / total_figure_height
+    legend_height_fig = legend_height / total_figure_height
+    
+    legend_ax1 = fig.add_axes([0.62, legend_bottom_fig, 0.18, legend_height_fig])
+    legend_ax2 = fig.add_axes([0.82, legend_bottom_fig, 0.18, legend_height_fig])
+    
+    domain_leg = legend_ax1.legend(handles=domain_legend_elements, title="Domain Judgments", 
+                                  loc='center', frameon=True, framealpha=1, edgecolor='black', 
+                                  borderpad=1, fancybox=False, handlelength=2.0, handleheight=1.5)
+    legend_ax1.axis('off')
+    plt.setp(domain_leg.get_texts(), fontweight="semibold", fontsize=11.9)  
+    plt.setp(domain_leg.get_title(), fontweight="bold", fontsize=13.3) 
+    
+    certainty_leg = legend_ax2.legend(handles=certainty_legend_elements, title="Overall Certainty", 
+                                     loc='center', frameon=True, framealpha=1, edgecolor='black', 
+                                     borderpad=1, fancybox=False, handlelength=2.0, handleheight=1.5)
+    legend_ax2.axis('off')
+    plt.setp(certainty_leg.get_texts(), fontweight="semibold", fontsize=11.9) 
+    plt.setp(certainty_leg.get_title(), fontweight="bold", fontsize=13.3)  
+    
+    text_ax = fig.add_axes([0.08, legend_bottom_fig, 0.52, legend_height_fig])
+    text_ax.axis('off')
+    
+    explanatory_text = (
+        "1) Risk of Bias: Limitations in study design or conduct that may affect results\n"
+        "2) Inconsistency: Unexplained variability in results across studies\n"
+        "3) Indirectness: Evidence not directly applicable\n"
+        "4) Imprecision: Uncertainty due to wide confidence intervals or small sample size\n"
+        "5) Publication Bias: Selective publication or missing studies influencing results\n"
+        "6) Overall Certainty: Confidence that the estimated effect is close to the true effect"
+    )
+    
+    text_ax.text(0, 0.5, explanatory_text, fontsize=12.6, va='center', ha='left', wrap=True, fontweight="semibold")  
+    
+    plt.savefig(output_file, dpi=dpi, bbox_inches='tight', pad_inches=0.1, facecolor='white')
+    plt.close(fig)
+    gc.collect()  
     print(f"✅ GRADE plot saved to {output_file}")
-    
-
-    del bar_data
 
 def read_input_file(input_file: str) -> pd.DataFrame:
     """Read input file with memory optimizations"""
     if input_file.endswith(".csv"):
-        return pd.read_csv(input_file, engine='c')
+        try:
+            usecols = ["Outcome", "Risk of Bias", "Inconsistency", "Indirectness", 
+                       "Imprecision", "Publication Bias", "Other Considerations", "Overall Certainty"]
+            df = pd.read_csv(input_file, engine='c', usecols=usecols)
+            print("Successfully read CSV file with default settings")
+        except:
+            try:
+                df = pd.read_csv(input_file, engine='c', encoding='latin1')
+                print("Successfully read CSV file with latin1 encoding")
+            except:
+                try:
+                    df = pd.read_csv(input_file, engine='c', sep=';')
+                    print("Successfully read CSV file with semicolon separator")
+                except:
+                    df = pd.read_csv(input_file, engine='python')
+                    print("Successfully read CSV file with python engine")
+        
+        if len(df) <= 20:
+            print("First 5 rows of the CSV file:")
+            print(df.head())
+            print("\nData types:")
+            print(df.dtypes)
+            print("\nColumn names:")
+            print(df.columns.tolist())
+        
+        return df
     elif input_file.endswith(".xlsx") or input_file.endswith(".xls"):
-        return pd.read_excel(input_file, engine='openpyxl')
+     
+        try:
+            df = pd.read_excel(input_file, engine='openpyxl')
+        except:
+            try:
+                df = pd.read_excel(input_file, engine='xlrd')
+            except Exception as e:
+                raise ValueError(f"Failed to read Excel file: {str(e)}")
+        
+        if len(df) <= 20:
+            print("First 5 rows of the Excel file:")
+            print(df.head())
+            print("\nData types:")
+            print(df.dtypes)
+            print("\nColumn names:")
+            print(df.columns.tolist())
+        
+        return df
     else:
         raise ValueError("Unsupported file format. Please use .csv or .xlsx/.xls")
 
@@ -224,9 +324,13 @@ if __name__ == "__main__":
         sys.exit(1)
     input_file, output_file = sys.argv[1], sys.argv[2]
     theme = sys.argv[3] if len(sys.argv)==4 else "default"
+    
     df = read_input_file(input_file)
     df = process_grade(df)
+    
+    gc.collect()
+    
     grade_plot(df, output_file, theme)
     
-
     del df
+    gc.collect()
