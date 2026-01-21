@@ -51,7 +51,7 @@ def standardize_risk(risk):
         return 'Unclear'
 
 def professional_robis_plot(df: pd.DataFrame, output_file: str, theme: str = "default"):
-    """Create professional ROBIS plot with memory optimizations"""
+    """Create professional ROBIS plot with balanced font sizes"""
     theme_options = {
         "default": {"Low":"#06923E","Unclear":"#FFD93D","High":"#DC2525"},
         "blue": {"Low":"#3a83b7","Unclear":"#7fb2e6","High":"#084582"},
@@ -68,9 +68,9 @@ def professional_robis_plot(df: pd.DataFrame, output_file: str, theme: str = "de
     
 
     n_studies = len(df)
-    per_study_height = 0.5      
-    min_first_plot_height = 4.0  
-    second_plot_height = 2.5  
+    per_study_height = 0.65      
+    min_first_plot_height = 3.0  
+    second_plot_height = 3.5  
     gap_between_plots = 1.7    
     top_margin = 1.0           
     bottom_margin = 0.5        
@@ -78,7 +78,7 @@ def professional_robis_plot(df: pd.DataFrame, output_file: str, theme: str = "de
     first_plot_height = max(min_first_plot_height, n_studies * per_study_height)
     total_height = first_plot_height + gap_between_plots + second_plot_height + top_margin + bottom_margin
     
-    fig = plt.figure(figsize=(18, total_height))
+    fig = plt.figure(figsize=(24, total_height))
     
 
     ax0_bottom = (bottom_margin + second_plot_height + gap_between_plots) / total_height
@@ -110,7 +110,7 @@ def professional_robis_plot(df: pd.DataFrame, output_file: str, theme: str = "de
                 risk = standardize_risk(row[domain])
                 symbol = risk_to_symbol(risk)
                 x_pos = domain_pos[domain]
-                ax0.text(x_pos, y_pos, symbol, fontsize=30, ha='center', va='center',
+                ax0.text(x_pos, y_pos, symbol, fontsize=32, ha='center', va='center',
                         color=colors.get(risk, "#BBBBBB"), fontweight="bold", zorder=1)
     else:
 
@@ -129,18 +129,18 @@ def professional_robis_plot(df: pd.DataFrame, output_file: str, theme: str = "de
                 point_colors.append(colors.get(risk, "#BBBBBB"))
         
 
-        ax0.scatter(x_coords, y_coords, c=point_colors, s=800, marker="s", 
+        ax0.scatter(x_coords, y_coords, c=point_colors, s=1300, marker="s", 
                    edgecolor='white', linewidth=1, zorder=1)
     
 
     ax0.set_xticks(range(len(domains)))
-    ax0.set_xticklabels(domains, fontsize=14, fontweight="bold")
+    ax0.set_xticklabels(domains, fontsize=20, fontweight="bold")
     ax0.set_yticks(list(review_pos.values()))
-    ax0.set_yticklabels(list(review_pos.keys()), fontsize=11, fontweight="bold")
+    ax0.set_yticklabels(list(review_pos.keys()), fontsize=20, fontweight="bold")
     ax0.set_ylim(-0.5, len(review_pos)-0.5)
     ax0.set_xlim(-0.5, len(domains)-0.5)
     ax0.set_facecolor('white')
-    ax0.set_title("ROBIS Traffic-Light Plot", fontsize=18, fontweight="bold")
+    ax0.set_title("ROBIS Traffic-Light Plot", fontsize=28, fontweight="bold", pad=12)
     ax0.set_xlabel("")
     ax0.set_ylabel("")
     ax0.grid(axis='x', linestyle='--', alpha=0.25)
@@ -189,17 +189,18 @@ def professional_robis_plot(df: pd.DataFrame, output_file: str, theme: str = "de
             if width > 0:
                 ax1.text(left + width/2, i, f"{width:.0f}%", 
                         ha='center', va='center', color='black', 
-                        fontsize=10, fontweight="bold")
+                        fontsize=18, fontweight="bold")
                 left += width
     
 
     ax1.set_xlim(0, 100)
-    ax1.set_xlabel("Percentage of Reviews (%)", fontsize=13, fontweight="bold")
+    ax1.set_xlabel("Percentage of Reviews (%)", fontsize=24, fontweight="bold")
+    ax1.tick_params(axis='x', labelsize=20)
     ax1.set_ylabel("")
-    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=18, fontweight="bold")
+    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=28, fontweight="bold")
     ax1.grid(axis='x', linestyle='--', alpha=0.25)
     ax1.set_yticks(range(len(inverted_domains)))
-    ax1.set_yticklabels(inverted_domains, fontsize=12, fontweight="bold")
+    ax1.set_yticklabels(inverted_domains, fontsize=20, fontweight="bold")
     
 
     for label in ax1.get_yticklabels():
@@ -213,21 +214,22 @@ def professional_robis_plot(df: pd.DataFrame, output_file: str, theme: str = "de
     
     legend_elements = [
         Line2D([0], [0], marker='s', color='w', label='Low Risk', 
-              markerfacecolor=colors.get("Low", "#BBBBBB"), markersize=20),
+              markerfacecolor=colors.get("Low", "#BBBBBB"), markersize=18),
         Line2D([0], [0], marker='s', color='w', label='Unclear Risk', 
-              markerfacecolor=colors.get("Unclear", "#BBBBBB"), markersize=20),
+              markerfacecolor=colors.get("Unclear", "#BBBBBB"), markersize=18),
         Line2D([0], [0], marker='s', color='w', label='High Risk', 
-              markerfacecolor=colors.get("High", "#BBBBBB"), markersize=20)
+              markerfacecolor=colors.get("High", "#BBBBBB"), markersize=18)
     ]
     legend = ax0.legend(
         handles=legend_elements, 
         title="Domain Risk",
-        bbox_to_anchor=(1.15, 1), 
+        bbox_to_anchor=(1.02, 1), 
         loc='upper left',
-        fontsize=14, 
-        title_fontsize=16
+        fontsize=20, 
+        title_fontsize=22
     )
-    plt.setp(legend.get_texts(), fontweight="bold")
+    legend.get_frame().set_edgecolor('black')
+    plt.setp(legend.get_texts(), fontweight="normal")
     plt.setp(legend.get_title(), fontweight="bold")
 
    

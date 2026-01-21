@@ -6,6 +6,26 @@ import os
 from matplotlib.lines import Line2D
 from collections import defaultdict
 
+def normalize_jbi_value(val):
+    """Normalizes input values to 1, 0, 'Unclear', or 'Not Applicable'."""
+    if pd.isna(val):
+        return "Unclear"
+    
+
+    s_val = str(val).strip().lower()
+    
+    if s_val in ['1', 'yes', 'low']:
+        return 1
+    if s_val in ['0', 'no', 'high']:
+        return 0
+    if s_val in ['unclear', '?']:
+        return "Unclear"
+    if s_val in ['not applicable', 'n/a', 'na', 'not applicable']:
+        return "Not Applicable"
+    
+
+    return "Unclear"
+
 def process_jbi_case_report(df: pd.DataFrame) -> pd.DataFrame:
     if "Author,Year" not in df.columns:
         if "Author, Year" in df.columns:
@@ -26,37 +46,53 @@ def process_jbi_case_report(df: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-    numeric_cols = [
+    domain_cols = [
         "Demographics", "History", "ClinicalCondition", "Diagnostics",
         "Intervention", "PostCondition", "AdverseEvents", "Lessons"
     ]
-    for col in numeric_cols:
-        if not pd.api.types.is_numeric_dtype(df[col]):
-            raise ValueError(f"Column {col} must be numeric (0 or 1).")
-        if df[col].min() < 0 or df[col].max() > 1:
-            raise ValueError(f"Column {col} contains invalid values (0 or 1 allowed).")
+    
 
-    df["ComputedTotal"] = df[numeric_cols].sum(axis=1)
+    for col in domain_cols:
+        df[col] = df[col].apply(normalize_jbi_value)
+        
+
+        allowed = {1, 0, "Unclear", "Not Applicable"}
+        invalid = df[~df[col].isin(allowed)]
+        if not invalid.empty:
+
+            raise ValueError(f"Column {col} contains unprocessable values after normalization.")
+
+
+    df["ComputedTotal"] = df[domain_cols].apply(lambda row: sum(1 for x in row if x == 1), axis=1)
+    
+    
     mismatches = df[df["ComputedTotal"] != df["Total"]]
     if not mismatches.empty:
-        print("⚠️ Warning: Total Score mismatches detected:")
+        print("⚠️ Warning: Total Score mismatches detected (Computed Total vs Input Total):")
+        print("Note: 'Unclear' and 'Not Applicable' are treated as 0 in the sum score.")
         print(mismatches[["Author,Year", "Total", "ComputedTotal"]])
 
     return df
 
 def stars_to_rob(score):
-    return "Low" if score == 1 else "High"
+
+    if score == 1: return "Low"      
+    if score == 0: return "High"     
+    if score == "Unclear": return "Unclear"
+    if score == "Not Applicable": return "Not Applicable"
+    return "Unclear" 
 
 def map_color(score, colors):
     return colors.get(stars_to_rob(score), "#BBBBBB")
 
 def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "default"):
+    
     theme_options = {
-        "default": {"Low":"#06923E","High":"#DC2525"},
-        "blue": {"Low":"#3a83b7","High":"#084582"},
-        "gray": {"Low":"#FF884DFF","High":"#5B6D80"},
-        "smiley": {"Low":"#06923E","High":"#DC2525"},
-        "smiley_blue": {"Low":"#3a83b7","High":"#084582"}
+        "default": {"Low":"#06923E","High":"#DC2525", "Unclear":"#F4BE3F", "Not Applicable":"#D3D3D3"},
+        "blue": {"Low":"#3a83b7","High":"#084582", "Unclear":"#667CA9FF", "Not Applicable":"#838383"},
+        "gray": {"Low":"#FF884DFF","High":"#5B6D80", "Unclear":"#D5617C", "Not Applicable":"#B0B0B0"},
+        "smiley": {"Low":"#06923E","High":"#DC2525", "Unclear":"#F4D03F", "Not Applicable":"#898989"},
+        "smiley_blue": {"Low":"#3a83b7","High":"#084582", "Unclear":"#667CA9FF", "Not Applicable":"#838383"}
     }
 
     if theme not in theme_options:
@@ -67,10 +103,10 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
                "Intervention", "PostCondition", "AdverseEvents", "Lessons", "Overall RoB"]
 
     n_studies = len(df)
-    per_study_height = 0.5      
+    per_study_height = 0.65   
     min_first_plot_height = 4.0
-    second_plot_height = 4.5    
-    gap_between_plots = 3.0   
+    second_plot_height = 6.5   
+    gap_between_plots = 3.5
     top_margin = 1.0            
     bottom_margin = 0.5        
     
@@ -97,27 +133,49 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
     ax0.axhline(len(author_pos)-0.5, color='lightgray', linewidth=0.8, zorder=0)
 
     if theme.startswith("smiley"):
+
+        symbol_map = {
+            0: "☹",      
+            1: "☺",       
+            "Unclear": "?",
+            "Not Applicable": "✖"
+        }
+        
         for _, row in df.iterrows():
             author = row["Author,Year"]
             y_pos = author_pos[author]
             
             for domain in domains[:-1]:
                 x_pos = domain_pos[domain]
-                symbol = "☺" if row[domain] == 1 else "☹"
-                color = colors[stars_to_rob(row[domain])]
-                ax0.text(x_pos, y_pos, symbol, fontsize=30, ha='center', va='center', 
+                score = row[domain]
+                symbol = symbol_map.get(score, "?")
+                color = colors.get(stars_to_rob(score), "#BBBBBB")
+                
+                ax0.text(x_pos, y_pos, symbol, fontsize=38, ha='center', va='center', 
                          color=color, fontweight='bold', zorder=1)
             
+
             x_pos = domain_pos["Overall RoB"]
-            symbol = "☺" if row["Overall RoB"] == "Low" else "☹"
-            color = colors.get(row["Overall RoB"], "#BBBBBB")
-            ax0.text(x_pos, y_pos, symbol, fontsize=30, ha='center', va='center', 
+            rob_status = row["Overall RoB"]
+      
+            norm_rob = normalize_jbi_value(rob_status)
+            
+            if norm_rob == 1 or norm_rob == "Low":
+                symbol, color = "☺", colors["Low"]
+            elif norm_rob == 0 or norm_rob == "High":
+                symbol, color = "☹", colors["High"]
+            elif norm_rob == "Unclear":
+                symbol, color = "😐", colors["Unclear"]
+            else:
+                symbol, color = "🚫", colors["Not Applicable"]
+                
+            ax0.text(x_pos, y_pos, symbol, fontsize=38, ha='center', va='center', 
                      color=color, fontweight='bold', zorder=1)
         
         ax0.set_xticks(range(len(domains)))
-        ax0.set_xticklabels(domains, fontsize=14, fontweight="bold", rotation=45, ha='right')
+        ax0.set_xticklabels(domains, fontsize=20, fontweight="bold", rotation=45, ha='right') 
         ax0.set_yticks(list(author_pos.values()))
-        ax0.set_yticklabels(list(author_pos.keys()), fontsize=11, fontweight="bold", rotation=0)
+        ax0.set_yticklabels(list(author_pos.keys()), fontsize=20, fontweight="bold", rotation=0) 
         ax0.set_ylim(-0.5, len(author_pos)-0.5)
         ax0.set_xlim(-0.5, len(domains)-0.5)
         ax0.set_facecolor('white')
@@ -137,16 +195,20 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
             
             x_coords.append(domain_pos["Overall RoB"])
             y_coords.append(y_pos)
-            colors_list.append(colors.get(row["Overall RoB"], "#BBBBBB"))
+
+            norm_rob = normalize_jbi_value(row["Overall RoB"])
+            rob_key = stars_to_rob(norm_rob)
+            rob_color = colors.get(rob_key, "#BBBBBB")
+            colors_list.append(rob_color)
         
-        ax0.scatter(x_coords, y_coords, c=colors_list, s=800, marker="s", zorder=1)
+        ax0.scatter(x_coords, y_coords, c=colors_list, s=1100, marker="s", zorder=1)
         ax0.set_xticks(range(len(domains)))
-        ax0.set_xticklabels(domains, fontsize=14, fontweight="bold", rotation=45, ha='right')
+        ax0.set_xticklabels(domains, fontsize=20, fontweight="bold", rotation=45, ha='right')
         ax0.set_yticks(list(author_pos.values()))
-        ax0.set_yticklabels(list(author_pos.keys()), fontsize=11, fontweight="bold", rotation=0)
+        ax0.set_yticklabels(list(author_pos.keys()), fontsize=20, fontweight="bold", rotation=0)
         ax0.set_ylim(-0.5, len(author_pos)-0.5)
 
-    ax0.set_title("JBI Case Report Traffic-Light Plot", fontsize=18, fontweight="bold")
+    ax0.set_title("JBI Case Report Traffic-Light Plot", fontsize=24, fontweight='bold',pad=12)
     ax0.set_xlabel("")
     ax0.set_ylabel("")
     ax0.grid(axis='x', linestyle='--', alpha=0.25)
@@ -158,57 +220,87 @@ def professional_jbi_plot(df: pd.DataFrame, output_file: str, theme: str = "defa
             risk = stars_to_rob(row[domain])
             risk_counts[domain][risk] += 1
         
-        risk_counts["Overall RoB"][row["Overall RoB"]] += 1
+
+        norm_rob = normalize_jbi_value(row["Overall RoB"])
+        risk_counts["Overall RoB"][stars_to_rob(norm_rob)] += 1
     
     inverted_domains = domains[::-1]
-    high_counts = []
-    low_counts = []
+    
+
+    categories = ["High", "Unclear", "Low", "Not Applicable"]
+    counts = {cat: [] for cat in categories}
     
     for domain in inverted_domains:
-        high_counts.append(risk_counts[domain].get("High", 0))
-        low_counts.append(risk_counts[domain].get("Low", 0))
+        for cat in categories:
+            counts[cat].append(risk_counts[domain].get(cat, 0))
     
-    totals = [h + l for h, l in zip(high_counts, low_counts)]
+ 
+    totals = [sum(counts[cat][i] for cat in categories) for i in range(len(inverted_domains))]
+    
+    high_counts = counts["High"]
+    unclear_counts = counts["Unclear"]
+    low_counts = counts["Low"]
+    na_counts = counts["Not Applicable"]
+    
     high_percent = [h / t * 100 if t > 0 else 0 for h, t in zip(high_counts, totals)]
+    unclear_percent = [u / t * 100 if t > 0 else 0 for u, t in zip(unclear_counts, totals)]
     low_percent = [l / t * 100 if t > 0 else 0 for l, t in zip(low_counts, totals)]
+    na_percent = [n / t * 100 if t > 0 else 0 for n, t in zip(na_counts, totals)]
     
     y_positions = range(len(inverted_domains))
     
-    ax1.barh(y_positions, high_percent, color=colors["High"], edgecolor='black', label='High')
-    ax1.barh(y_positions, low_percent, left=high_percent, color=colors["Low"], edgecolor='black', label='Low')
     
-    for i, (hp, lp) in enumerate(zip(high_percent, low_percent)):
-        if hp > 0:
-            ax1.text(hp/2, i, f"{hp:.0f}%", ha='center', va='center', 
-                     color='black', fontsize=14, fontweight='bold')
-        if lp > 0:
-            ax1.text(hp + lp/2, i, f"{lp:.0f}%", ha='center', va='center', 
-                     color='black', fontsize=14, fontweight='bold')
+    ax1.barh(y_positions, high_percent, color=colors["High"], edgecolor='black', label='High', height=0.85)
+    ax1.barh(y_positions, unclear_percent, left=high_percent, color=colors["Unclear"], edgecolor='black', label='Unclear', height=0.85)
+    ax1.barh(y_positions, low_percent, left=[h+u for h,u in zip(high_percent, unclear_percent)], color=colors["Low"], edgecolor='black', label='Low', height=0.85)
+
+    ax1.barh(y_positions, na_percent, left=[h+u+l for h,u,l in zip(high_percent, unclear_percent, low_percent)], color=colors["Not Applicable"], edgecolor='black', label='Not Applicable', height=0.85)
+    
+
+    for i in range(len(inverted_domains)):
+        if high_percent[i] > 0:
+            ax1.text(high_percent[i]/2, i, f"{high_percent[i]:.0f}%", ha='center', va='center', 
+                     color='black', fontsize=16, fontweight='bold')
+        
+        if unclear_percent[i] > 0:
+            ax1.text(high_percent[i] + unclear_percent[i]/2, i, f"{unclear_percent[i]:.0f}%", ha='center', va='center', 
+                     color='black', fontsize=16, fontweight='bold')
+        
+        if low_percent[i] > 0:
+            ax1.text(high_percent[i] + unclear_percent[i] + low_percent[i]/2, i, f"{low_percent[i]:.0f}%", ha='center', va='center', 
+                     color='black', fontsize=16, fontweight='bold')
+
+        if na_percent[i] > 0:
+             ax1.text(high_percent[i] + unclear_percent[i] + low_percent[i] + na_percent[i]/2, i, f"{na_percent[i]:.0f}%", ha='center', va='center', 
+                     color='black', fontsize=16, fontweight='bold')
     
     ax1.set_xlim(0,100)
     ax1.set_xticks([0,20,40,60,80,100])
-    ax1.set_xticklabels([0,20,40,60,80,100], fontsize=14, fontweight='bold')  
+    ax1.set_xticklabels([0,20,40,60,80,100], fontsize=20, fontweight='bold')
     ax1.set_yticks(range(len(inverted_domains)))
-    ax1.set_yticklabels(inverted_domains, fontsize=14, fontweight='bold') 
-    ax1.set_xlabel("Percentage of Studies (%)", fontsize=16, fontweight="bold") 
+    ax1.set_yticklabels(inverted_domains, fontsize=20, fontweight='bold')
+    ax1.set_xlabel("Percentage of Studies (%)", fontsize=20, fontweight="bold")
     ax1.set_ylabel("")
-    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=18, fontweight="bold")
+    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=24, fontweight="bold")
     ax1.grid(axis='x', linestyle='--', alpha=0.25)
     
     for y in range(len(inverted_domains)):
         ax1.axhline(y-0.5, color='lightgray', linewidth=0.8, zorder=0)
 
+
     legend_elements = [
-        Line2D([0],[0], marker='s', color='w', label='Low Risk', markerfacecolor=colors["Low"], markersize=12),
-        Line2D([0],[0], marker='s', color='w', label='High Risk', markerfacecolor=colors["High"], markersize=12)
+        Line2D([0],[0], marker='s', color='w', label='Low Risk (Yes)', markerfacecolor=colors["Low"], markersize=18),
+        Line2D([0],[0], marker='s', color='w', label='High Risk (No)', markerfacecolor=colors["High"], markersize=18),
+        Line2D([0],[0], marker='s', color='w', label='Unclear', markerfacecolor=colors["Unclear"], markersize=18),
+        Line2D([0],[0], marker='s', color='w', label='Not Applicable', markerfacecolor=colors["Not Applicable"], markersize=18)
     ]
     legend = ax0.legend(
         handles=legend_elements,
         title="Domain Risk",
         bbox_to_anchor=(1.02, 1),
         loc='upper left',
-        fontsize=14,
-        title_fontsize=16,
+        fontsize=20,
+        title_fontsize=22,
         frameon=True,
         fancybox=True,
         edgecolor='black'

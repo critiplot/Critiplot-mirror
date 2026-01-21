@@ -74,9 +74,9 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
     
 
     n_studies = len(df)
-    per_study_height = 0.5
+    per_study_height = 0.65
     min_first_plot_height = 4.0
-    second_plot_height = 1.7
+    second_plot_height = 2.4
     gap_between_plots = 1.7
     top_margin = 1.0
     bottom_margin = 0.5
@@ -118,14 +118,14 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
                 risk = stars_to_rob(stars, domain)
                 symbol = symbol_map.get(risk, "?")
                 x_pos = domain_pos[domain]
-                ax0.text(x_pos, y_pos, symbol, fontsize=30, ha='center', va='center', 
+                ax0.text(x_pos, y_pos, symbol, fontsize=35, ha='center', va='center', 
                         color=colors[risk], fontweight='bold', zorder=1)
             
  
             overall_rob = row["Overall RoB"]
             symbol = symbol_map.get(overall_rob, "?")
             x_pos = domain_pos["Overall RoB"]
-            ax0.text(x_pos, y_pos, symbol, fontsize=30, ha='center', va='center', 
+            ax0.text(x_pos, y_pos, symbol, fontsize=35, ha='center', va='center', 
                     color=colors.get(overall_rob, "#BBBBBB"), fontweight='bold', zorder=1)
     else:
    
@@ -151,18 +151,18 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
             point_colors.append(colors.get(overall_rob, "#BBBBBB"))
         
 
-        ax0.scatter(x_coords, y_coords, c=point_colors, s=800, marker="s", 
+        ax0.scatter(x_coords, y_coords, c=point_colors, s=1200, marker="s", 
                    edgecolor='white', linewidth=1, zorder=1)
     
 
     ax0.set_xticks(range(len(domains)))
-    ax0.set_xticklabels(domains, fontsize=14, fontweight="bold")
+    ax0.set_xticklabels(domains, fontsize=21, fontweight="bold")
     ax0.set_yticks(list(author_pos.values()))
-    ax0.set_yticklabels(list(author_pos.keys()), fontsize=11, fontweight="bold", rotation=0)
+    ax0.set_yticklabels(list(author_pos.keys()), fontsize=19, fontweight="bold", rotation=0)
     ax0.set_ylim(-0.5, len(author_pos)-0.5)
     ax0.set_xlim(-0.5, len(domains)-0.5)
     ax0.set_facecolor('white')
-    ax0.set_title("NOS Traffic-Light Plot", fontsize=18, fontweight="bold")
+    ax0.set_title("NOS Traffic-Light Plot", fontsize=27, fontweight="bold", pad=12)
     ax0.set_xlabel("")
     ax0.set_ylabel("")
     ax0.grid(axis='x', linestyle='--', alpha=0.25)
@@ -214,18 +214,18 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
             if width > 0:
                 ax1.text(left + width/2, i, f"{width:.0f}%", 
                         ha='center', va='center', color='black', 
-                        fontsize=12, fontweight='bold')
+                        fontsize=18, fontweight='bold')
                 left += width
     
  
     ax1.set_xlim(0, 100)
     ax1.set_xticks([0, 20, 40, 60, 80, 100])
-    ax1.set_xticklabels([0, 20, 40, 60, 80, 100], fontsize=12, fontweight='bold')
+    ax1.set_xticklabels([0, 20, 40, 60, 80, 100], fontsize=18, fontweight='bold')
     ax1.set_yticks(range(len(inverted_domains)))
-    ax1.set_yticklabels(inverted_domains, fontsize=12, fontweight='bold')
-    ax1.set_xlabel("Percentage of Studies (%)", fontsize=14, fontweight='bold')
+    ax1.set_yticklabels(inverted_domains, fontsize=18, fontweight='bold')
+    ax1.set_xlabel("Percentage of Studies (%)", fontsize=21, fontweight='bold')
     ax1.set_ylabel("")
-    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=18, fontweight='bold')
+    ax1.set_title("Distribution of Risk-of-Bias Judgments by Domain", fontsize=25, fontweight='bold')
     ax1.grid(axis='x', linestyle='--', alpha=0.25)
     
     
@@ -235,19 +235,19 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
 
     legend_elements = [
         Line2D([0], [0], marker='s', color='w', label='Low Risk', 
-              markerfacecolor=colors["Low"], markersize=12),
+              markerfacecolor=colors["Low"], markersize=17),
         Line2D([0], [0], marker='s', color='w', label='Moderate Risk', 
-              markerfacecolor=colors["Moderate"], markersize=12),
+              markerfacecolor=colors["Moderate"], markersize=17),
         Line2D([0], [0], marker='s', color='w', label='High Risk', 
-              markerfacecolor=colors["High"], markersize=12)
+              markerfacecolor=colors["High"], markersize=17)
     ]
     legend = ax0.legend(
         handles=legend_elements,
         title="Domain Risk",
-        bbox_to_anchor=(1.02, 1),
+        bbox_to_anchor=(1.01, 1),
         loc='upper left',
-        fontsize=14,
-        title_fontsize=16,
+        fontsize=21,
+        title_fontsize=23,
         frameon=True,
         fancybox=True,
         edgecolor='black'
@@ -255,7 +255,7 @@ def professional_plot(df: pd.DataFrame, output_file: str, theme: str = "default"
     plt.setp(legend.get_title(), fontweight='bold')
   
     for text in legend.get_texts():
-        text.set_fontweight('bold')
+        text.set_fontweight('normal')
     
 
     valid_ext = [".png", ".pdf", ".svg", ".eps"]

@@ -42,7 +42,9 @@ def process_grade(df: pd.DataFrame) -> pd.DataFrame:
                 "Serious": "Serious", "Yes": "Serious",
                 "Very Serious": "Very serious", "Veryserious": "Very serious", "Very_serious": "Very serious",
                 "High": "High", "Moderate": "Moderate", "Low": "Low",
-                "Very Low": "Very low", "Verylow": "Very low", "Very_low": "Very low"
+                "Very Low": "Very low", "Verylow": "Very low", "Very_low": "Very low",
+                "not reported": "Not reported", "notreported": "Not reported", "not_reported": "Not reported",
+                "Not Reported": "Not reported", "Notreported": "Not reported", "Not_reported": "Not reported"
             }
             
             df[col] = df[col].str.lower().map(mapping_dict).fillna(df[col])
@@ -85,15 +87,18 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
     theme_options = {
         "green": {  
             "High":"#276A42", "Moderate":"#58C85A", "Low":"#FFDA45", "Very low":"#DD4242",
-            "Not serious":"#58C85A", "Serious":"#DD4242", "Very serious":"#691625"  
+            "Not serious":"#58C85A", "Serious":"#DD4242", "Very serious":"#691625",
+            "Not reported":"#999999"  
         },
         "default": {  
             "High":"#2E7D32", "Moderate":"#F78710", "Low":"#F4C81B", "Very low":"#C62828",
-            "Not serious":"#2E7D32", "Serious":"#FCB33C", "Very serious":"#C62828"
+            "Not serious":"#2E7D32", "Serious":"#FCB33C", "Very serious":"#C62828",
+            "Not reported":"#999999"
         },
         "blue": {  
             "High":"#006699", "Moderate":"#3399CC", "Low":"#F4C81B", "Very low":"#CC3333",
-            "Not serious":"#3399CC", "Serious":"#CC3333", "Very serious":"#8B0000"  
+            "Not serious":"#3399CC", "Serious":"#CC3333", "Very serious":"#8B0000",
+            "Not reported":"#999999"  
         }
     }
 
@@ -118,7 +123,8 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
     
     plot_height = base_plot_height + (n_studies * height_per_study)
     
-    legend_text_height = 2.5
+
+    legend_text_height = 3.0
     
     total_figure_height = plot_height + legend_text_height
     
@@ -150,7 +156,8 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
     outcome_order = df["Outcome_Display"].tolist()
     
     domain_pos = {d: i for i, d in enumerate(domains)}
-    overall_pos = len(domains)
+    gap_size = 0.1
+    overall_pos = len(domains) + gap_size
     outcome_pos = {o: i for i, o in enumerate(outcome_order)}
     
     y_positions = list(range(len(outcome_pos))) + [-0.5, len(outcome_pos)-0.5]
@@ -162,7 +169,8 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
     domain_symbol_map = {
         "Not serious": "+",
         "Serious": "-",
-        "Very serious": "X"
+        "Very serious": "X",
+        "Not reported": "?"
     }
     
     certainty_symbol_map = {
@@ -182,7 +190,7 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
             
             ax.scatter(x_pos, y_pos, c=color, s=1960, marker="s", edgecolor='white', linewidth=2, zorder=1)  
             symbol = domain_symbol_map.get(certainty, "?")
-            ax.text(x_pos, y_pos, symbol, color='black', fontsize=24.5, ha='center', va='center', zorder=2) 
+            ax.text(x_pos, y_pos, symbol, color='black', fontsize=37.73, ha='center', va='center', zorder=2) 
     
     for _, row in df.iterrows():
         y_pos = outcome_pos[row["Outcome_Display"]]
@@ -192,30 +200,34 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
         
         ax.scatter(x_pos, y_pos, c=color, s=2240, marker="o", edgecolor='white', linewidth=2, zorder=1)
         symbol = certainty_symbol_map.get(certainty, "?")
-        ax.text(x_pos, y_pos, symbol, color='black', fontsize=24.5, ha='center', va='center', zorder=2)  
+        ax.text(x_pos, y_pos, symbol, color='black', fontsize=37.73, ha='center', va='center', zorder=2)  
     
     ax.set_yticks(range(len(outcome_order)))
-    ax.set_yticklabels(outcome_order, fontsize=10.5, fontweight="semibold") 
+    ax.set_yticklabels(outcome_order, fontsize=17.17, fontweight="semibold") 
     
-    all_columns = domains + ["Overall Certainty"]
-    ax.set_xticks(range(len(all_columns)))
-    ax.set_xticklabels(all_columns, fontsize=11.2, fontweight="semibold")  
+    all_columns = domains + ["Overall Certainty"]  
+    x_ticks = list(range(len(domains))) + [overall_pos]
+    
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(all_columns, fontsize=17.25, fontweight="semibold")  
     
     ax.get_xticklabels()[-1].set_fontweight("bold")
-    ax.get_xticklabels()[-1].set_fontsize(11.9) 
+    ax.get_xticklabels()[-1].set_fontsize(17.7) 
     
-    ax.set_xlim(-0.5, len(all_columns)-0.5)
+
+    ax.set_xlim(-0.5, overall_pos + 0.5)
     ax.set_ylim(-0.5, len(outcome_order)-0.5)
     ax.set_facecolor('white')
-    ax.set_title("GRADE Evidence Profile", fontsize=15.4, fontweight="bold", pad=20) 
-    ax.set_xlabel("", fontsize=8.4, fontweight="semibold")  
-    ax.set_ylabel("", fontsize=8.4, fontweight="semibold")  
-    ax.tick_params(axis='y', labelsize=10.5)  
+    ax.set_title("GRADE Evidence Profile", fontsize=23.72, fontweight="bold", pad=12) 
+    ax.set_xlabel("", fontsize=12.94, fontweight="semibold")  
+    ax.set_ylabel("", fontsize=12.94, fontweight="semibold")  
+    ax.tick_params(axis='y', labelsize=17.17)  
     
     domain_legend_elements = [
         Patch(facecolor=colors.get("Not serious", "grey"), edgecolor='black', label="Not serious (+)"),
         Patch(facecolor=colors.get("Serious", "grey"), edgecolor='black', label="Serious (-)"),
-        Patch(facecolor=colors.get("Very serious", "grey"), edgecolor='black', label="Very serious (X)")
+        Patch(facecolor=colors.get("Very serious", "grey"), edgecolor='black', label="Very serious (X)"),
+        Patch(facecolor=colors.get("Not reported", "grey"), edgecolor='black', label="Not reported (?)")
     ]
     
     certainty_legend_elements = [
@@ -225,7 +237,8 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
         Patch(facecolor=colors.get("Very low", "grey"), edgecolor='black', label="Very low (x)")
     ]
     
-    legend_bottom = 0.5
+
+    legend_bottom = 0.2
     legend_height = 1.05  
     
     legend_bottom_fig = legend_bottom / total_figure_height
@@ -238,29 +251,32 @@ def grade_plot(df: pd.DataFrame, output_file: str, theme="default"):
                                   loc='center', frameon=True, framealpha=1, edgecolor='black', 
                                   borderpad=1, fancybox=False, handlelength=2.0, handleheight=1.5)
     legend_ax1.axis('off')
-    plt.setp(domain_leg.get_texts(), fontweight="semibold", fontsize=11.9)  
-    plt.setp(domain_leg.get_title(), fontweight="bold", fontsize=13.3) 
+
+    plt.setp(domain_leg.get_texts(), fontweight="normal", fontsize=18.33)  
+    plt.setp(domain_leg.get_title(), fontweight="bold", fontsize=20.48) 
     
     certainty_leg = legend_ax2.legend(handles=certainty_legend_elements, title="Overall Certainty", 
                                      loc='center', frameon=True, framealpha=1, edgecolor='black', 
                                      borderpad=1, fancybox=False, handlelength=2.0, handleheight=1.5)
     legend_ax2.axis('off')
-    plt.setp(certainty_leg.get_texts(), fontweight="semibold", fontsize=11.9) 
-    plt.setp(certainty_leg.get_title(), fontweight="bold", fontsize=13.3)  
+
+    plt.setp(certainty_leg.get_texts(), fontweight="normal", fontsize=18.33) 
+    plt.setp(certainty_leg.get_title(), fontweight="bold", fontsize=20.48)  
     
+
     text_ax = fig.add_axes([0.08, legend_bottom_fig, 0.52, legend_height_fig])
     text_ax.axis('off')
     
     explanatory_text = (
-        "1) Risk of Bias: Limitations in study design or conduct that may affect results\n"
-        "2) Inconsistency: Unexplained variability in results across studies\n"
+        "1) Risk of Bias: Study design flaws\n"
+        "2) Inconsistency: Results vary across studies\n"
         "3) Indirectness: Evidence not directly applicable\n"
-        "4) Imprecision: Uncertainty due to wide confidence intervals or small sample size\n"
-        "5) Publication Bias: Selective publication or missing studies influencing results\n"
-        "6) Overall Certainty: Confidence that the estimated effect is close to the true effect"
+        "4) Imprecision: Wide or uncertain estimates\n"
+        "5) Publication Bias: Missing or selective studies\n"
+        "6) Overall Certainty: Confidence in true effect"
     )
     
-    text_ax.text(0, 0.5, explanatory_text, fontsize=12.6, va='center', ha='left', wrap=True, fontweight="semibold")  
+    text_ax.text(0, 0.5, explanatory_text, fontsize=19.5, va='center', ha='left', wrap=True, fontweight="normal")  
     
     plt.savefig(output_file, dpi=dpi, bbox_inches='tight', pad_inches=0.1, facecolor='white')
     plt.close(fig)
@@ -288,7 +304,7 @@ def read_input_file(input_file: str) -> pd.DataFrame:
                     print("Successfully read CSV file with python engine")
         
         if len(df) <= 20:
-            print("First 5 rows of the CSV file:")
+            print("First 5 rows of CSV file:")
             print(df.head())
             print("\nData types:")
             print(df.dtypes)
@@ -297,7 +313,6 @@ def read_input_file(input_file: str) -> pd.DataFrame:
         
         return df
     elif input_file.endswith(".xlsx") or input_file.endswith(".xls"):
-     
         try:
             df = pd.read_excel(input_file, engine='openpyxl')
         except:
@@ -307,7 +322,7 @@ def read_input_file(input_file: str) -> pd.DataFrame:
                 raise ValueError(f"Failed to read Excel file: {str(e)}")
         
         if len(df) <= 20:
-            print("First 5 rows of the Excel file:")
+            print("First 5 rows of Excel file:")
             print(df.head())
             print("\nData types:")
             print(df.dtypes)
