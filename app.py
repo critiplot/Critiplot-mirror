@@ -9,18 +9,9 @@ import streamlit.components.v1 as components
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
-from matplotlib.gridspec import GridSpec
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
-import re
 import glob
 
-from nos_plot import process_detailed_nos, professional_plot, read_input_file as read_nos_file
-from grade_plot import process_grade, grade_plot, read_input_file as read_grade_file
-from robis_plot import process_robis, professional_robis_plot, read_input_file as read_robis_file
-from jbi_case_report_plot import process_jbi_case_report, professional_jbi_plot, read_input_file as read_jbi_case_file
-from jbi_case_series_plot import process_jbi_case_series, professional_jbi_series_plot, read_input_file as read_jbi_series_file
-from mmat_plot import process_mmat, mmat_plot, read_input_file as read_mmat_file
+import critiplot
 
 st.set_page_config(
     page_title="Critiplot",
@@ -469,7 +460,6 @@ theme = st.selectbox(
     key=f"theme_{tool}"
 )
 
-df = None
 tmp_file_path = None
 temp_dir = None
 
@@ -488,73 +478,53 @@ if uploaded_file is not None:
             tmp_file.write(uploaded_file.getvalue())
             tmp_file_path = tmp_file.name
         
+
         if tool.startswith("NOS"):
-            df = read_nos_file(tmp_file_path)
-            df = process_detailed_nos(df)
-            st.success(" Data validated successfully!")
-            plot_function = professional_plot
+            plot_function = critiplot.plot_nos
             plot_name = "NOS"
         elif tool == "GRADE":
-            df = read_grade_file(tmp_file_path)
-            df = process_grade(df)
-            st.success(" Data validated successfully!")
-            plot_function = grade_plot
+            plot_function = critiplot.plot_grade
             plot_name = "GRADE"
         elif tool == "ROBIS":
-            df = read_robis_file(tmp_file_path)
-            df = process_robis(df)
-            st.success(" Data validated successfully!")
-            plot_function = professional_robis_plot
+            plot_function = critiplot.plot_robis
             plot_name = "ROBIS"
         elif tool == "JBI Case Report":
-            df = read_jbi_case_file(tmp_file_path)
-            df = process_jbi_case_report(df)
-            st.success(" Data validated successfully!")
-            plot_function = professional_jbi_plot
+            plot_function = critiplot.plot_jbi_case_report
             plot_name = "JBI_Case_Report"
         elif tool == "JBI Case Series":
-            df = read_jbi_series_file(tmp_file_path)
-            df = process_jbi_case_series(df)
-            st.success(" Data validated successfully!")
-            plot_function = professional_jbi_series_plot
+            plot_function = critiplot.plot_jbi_case_series
             plot_name = "JBI_Case_Series"
         elif tool == "MMAT (Mixed Methods Appraisal Tool)":
-            df = read_mmat_file(tmp_file_path)
-            df = process_mmat(df)
-            st.success(" Data validated successfully!")
-            plot_function = mmat_plot
+            plot_function = critiplot.plot_mmat
             plot_name = "MMAT"
 
         temp_dir = tempfile.mkdtemp()
         
 
         if tool == "MMAT (Mixed Methods Appraisal Tool)":
-          
             output_files = {}
             for ext in [".png", ".pdf", ".svg", ".eps"]:
-  
                 temp_file_path_ext = os.path.join(temp_dir, f"{plot_name}_TrafficLight{ext}")
-                plot_function(df, temp_file_path_ext, theme=theme)
+            
+                plot_function(tmp_file_path, temp_file_path_ext, theme=theme)
                 plt.close('all')
                 
-           
                 pattern = os.path.join(temp_dir, f"{plot_name}_TrafficLight_*{ext}")
                 files = glob.glob(pattern)
                 output_files[ext] = files
         else:
-          
             output_files = {ext: os.path.join(temp_dir, f"{plot_name}_TrafficLight{ext}") for ext in [".png",".pdf",".svg",".eps"]}
             for out_ext, path in output_files.items():
-                plot_function(df, path, theme=theme)
+               
+                plot_function(tmp_file_path, path, theme=theme)
                 plt.close('all') 
-
+        
+        st.success(" Plot generated successfully!")
         st.markdown("### Visualization Preview")
         if tool == "MMAT (Mixed Methods Appraisal Tool)":
-
             if output_files.get(".png") and len(output_files[".png"]) > 0:
                 st.markdown('<div class="plot-container">', unsafe_allow_html=True)
                 for file_path in output_files[".png"]:
-
                     filename = os.path.basename(file_path)
                     category = filename.replace(f"{plot_name}_TrafficLight_", "").replace(".png", "")
                     
@@ -572,13 +542,11 @@ if uploaded_file is not None:
         st.markdown('<p style="color: #ffff; font-size: 1.1rem;">Download your Critiplot visualisation in formats like:</p>', unsafe_allow_html=True)
 
         if tool == "MMAT (Mixed Methods Appraisal Tool)":
-           
             for ext in [".png", ".pdf", ".svg", ".eps"]:
                 if ext in output_files and output_files[ext]:
                     st.markdown(f"#### {ext[1:].upper()} Files")
                     download_buttons = []
                     for file_path in output_files[ext]:
-                  
                         filename = os.path.basename(file_path)
                         category = filename.replace(f"{plot_name}_TrafficLight_", "").replace(ext, "")
                         
@@ -599,7 +567,6 @@ if uploaded_file is not None:
                     if download_buttons:
                         st.markdown('<div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap: wrap;">' + ''.join(download_buttons) + '</div>', unsafe_allow_html=True)
         else:
-        
             download_html = '<div style="display:flex; gap:10px; margin-bottom:10px;">'
             for out_ext, path in output_files.items():
                 with open(path, "rb") as f:
@@ -627,7 +594,6 @@ if uploaded_file is not None:
             os.unlink(tmp_file_path)
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-        df = None
         import gc
         gc.collect()
 
